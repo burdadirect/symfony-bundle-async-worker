@@ -1,0 +1,40 @@
+{
+  "name": "burdanews/async-bundle",
+  "description": "HBM Async Bundle - Async execution of symfony commands via redis queues.",
+  "author" : [{
+    "name" : "Christian Puchinger",
+    "email" : "puchinger@burda.com"
+  }],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:burdanews/async-bundle.git"
+  },
+  "type": "symfony-bundle",
+  "autoload": {
+    "psr-0": {
+      "HBM\\AsyncBundle": ""
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "require": {
+    "php" : ">=7.1",
+    "ext-redis": "*",
+    "ext-json": "*",
+    "psr/log": "^1.0",
+    "symfony/config": "^3.4|^4.1",
+    "symfony/console": "^3.4|^4.1",
+    "symfony/dependency-injection": "^3.4|^4.1",
+    "symfony/swiftmailer-bundle": "^3.2"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-master",
+    "phpunit/phpunit" : "^6.5|^7.0",
+    "symfony/phpunit-bridge": "^3.4|^4.0"
+  },
+  "target-dir": "HBM/AsyncBundle"
+}

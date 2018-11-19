@@ -1,0 +1,22 @@
+{% if job.message %}
+Message:
+{{ job.message }}
+{% endif %}
+
+{% if command %}
+Description:
+{{ command.description }}
+
+Command:
+{{ command.name }}
+{% endif %}
+
+{% if arguments %}
+Arguments:
+{{ arguments }}
+{% endif %}
+
+{% if output %}
+Output:
+{{ output.fetch }}
+{% endif %}
