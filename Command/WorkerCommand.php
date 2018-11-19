@@ -374,7 +374,8 @@ class WorkerCommand extends Command {
     }
 
     if ($this->messenger->getWorkerStatus($this->workerId) !== Messenger::STATUS_STOPPED) {
-      if ($this->messenger->getWorkerStart($this->workerId) < time() - $this->config['worker']['timeout'] * $time_limit) {
+      $start = $this->messenger->getWorkerStart($this->workerId);
+      if ($start && ($start->getTimestamp() < time() - $this->config['worker']['timeout'] * $time_limit)) {
         if ($this->input->getArgument('action') !== 'force') {
           $this->messenger->setWorkerStatusToTimeout($this->workerId);
           $this->outputAndLog('Worker has timed out (worker ID '.$this->workerId.').', 'alert');
