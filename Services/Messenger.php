@@ -3,6 +3,7 @@
 namespace HBM\AsyncBundle\Services;
 
 use HBM\AsyncBundle\Async\Job\AbstractAsyncJob;
+use HBM\AsyncBundle\Async\Job\Interfaces\AsyncJob;
 use Psr\Log\LoggerInterface;
 
 class Messenger {
@@ -574,7 +575,7 @@ class Messenger {
    */
   public function markJobAsCancelled(AbstractAsyncJob $job) : void {
     $job->setCancelled(new \DateTime('now'));
-    $job->setState('cancelled');
+    $job->setState(AsyncJob::STATUS_CANCELLED);
     $this->updateJob($job);
   }
 
@@ -584,7 +585,7 @@ class Messenger {
    */
   public function markJobAsRunning(AbstractAsyncJob $job, string $workerId) : void {
     $job->setStarted(new \DateTime('now'));
-    $job->setState('running');
+    $job->setState(AsyncJob::STATUS_RUNNING);
     if ($workerId) {
       $job->setWorkerExecuting($workerId);
     }
@@ -598,7 +599,7 @@ class Messenger {
    * @param AbstractAsyncJob $job
    */
   public function markJobAsFailed(AbstractAsyncJob $job) : void {
-    $job->setState('failed');
+    $job->setState(AsyncJob::STATUS_FAILED);
     $this->updateJob($job);
 
     $this->resetJob($job);

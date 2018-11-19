@@ -4,6 +4,10 @@ namespace HBM\AsyncBundle\Async\Job\Interfaces;
 
 interface AsyncJob {
 
+  public const STATUS_RUNNING = 'running';
+  public const STATUS_FAILED = 'failed';
+  public const STATUS_CANCELLED = 'cancelled';
+
   /**
    * Return the class of the executor.
    *
