@@ -252,7 +252,7 @@ class WorkerCommand extends Command {
       /************************************************************************/
       /* SEND INFORMER MAIL                                                   */
       /************************************************************************/
-      $this->informAboutJob($asyncJob);
+      $this->informAboutJob($asyncJob, $executor->getReturnData());
 
       /************************************************************************/
       /* OUTPUT RESULT                                                        */
@@ -273,18 +273,11 @@ class WorkerCommand extends Command {
    * Inform about job execution via email.
    *
    * @param AbstractAsyncJob $asyncJob
+   * @param array $returnData
    *
    * @return bool
    */
-
-  /**
-   * Inform about job execution via email.
-   *
-   * @param AbstractAsyncJob $asyncJob
-   *
-   * @return bool
-   */
-  private function informAboutJob(AbstractAsyncJob $asyncJob) : bool {
+  private function informAboutJob(AbstractAsyncJob $asyncJob, array $returnData) : bool {
     $email = $this->config['mail']['to'];
     if ($asyncJob->getEmail()) {
       $email = $asyncJob->getEmail();
@@ -300,21 +293,21 @@ class WorkerCommand extends Command {
       $subject = $this->renderTemplateChain([
         $asyncJob->getTemplateFolder().':body.text.twig',
         'HBMAsyncBundle:subject.text.twig',
-      ], $asyncJob->getData());
+      ], $returnData);
       $message->setSubject($subject);
 
       // Render text body.
       $body = $this->renderTemplateChain([
         $asyncJob->getTemplateFolder().':body.text.twig',
         'HBMAsyncBundle:body.text.twig',
-      ], $asyncJob->getData());
+      ], $returnData);
       $message->setBody($body, 'text/plain');
 
       // Render html body.
       $body = $this->renderTemplateChain([
         $asyncJob->getTemplateFolder().':body.html.twig',
         'HBMAsyncBundle:body.html.twig',
-      ], $asyncJob->getData());
+      ], $returnData);
       if ($body) {
         $message->setBody($body, 'text/html');
       }

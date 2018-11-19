@@ -22,7 +22,7 @@ class CommandExecutor extends AbstractExecutor {
 
     // Find command.
     $command = $this->application->find($job->getCommand());
-    $job->setDataValue('command', $command);
+    $this->setReturnDataValue('command', $command);
 
     // Assemble arguments.
     $arguments = $job->getArguments();
@@ -33,7 +33,7 @@ class CommandExecutor extends AbstractExecutor {
 
     // Run command.
     $this->setReturnCode($command->run(new ArrayInput($arguments), $bufferedOutput));
-    $job->setDataValue('output', $bufferedOutput);
+    $this->setReturnDataValue('output', $bufferedOutput);
   }
 
 }

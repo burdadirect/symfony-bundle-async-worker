@@ -21,6 +21,11 @@ abstract class AbstractExecutor  {
   protected $config;
 
   /**
+   * @var array
+   */
+  protected $returnData = [];
+
+  /**
    * @var int
    */
   protected $returnCode;
@@ -34,6 +39,28 @@ abstract class AbstractExecutor  {
   public function __construct(Application $application, array $config) {
     $this->application = $application;
     $this->config = $config;
+  }
+
+  /**
+   * Set returnData.
+   *
+   * @param array $returnData
+   *
+   * @return self
+   */
+  public function setReturnData(array $returnData) : self {
+    $this->returnData = $returnData;
+
+    return $this;
+  }
+
+  /**
+   * Get returnData.
+   *
+   * @return array
+   */
+  public function getReturnData() : array {
+    return $this->returnData;
   }
 
   /**
@@ -63,6 +90,16 @@ abstract class AbstractExecutor  {
   /****************************************************************************/
 
   /**
+   * Set data value.
+   *
+   * @param $key
+   * @param $value
+   */
+  public function setReturnDataValue($key, $value) : void {
+    $this->returnData[$key] = $value;
+  }
+
+  /**
    * Execute async job.
    *
    * @param AbstractAsyncJob $job
@@ -70,6 +107,7 @@ abstract class AbstractExecutor  {
    * @throws \Exception
    */
   public function execute(AbstractAsyncJob $job) : void {
+    $this->setReturnDataValue('job', $job);
     $this->executeInternal($job);
   }
 

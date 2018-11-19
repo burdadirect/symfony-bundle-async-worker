@@ -71,11 +71,6 @@ abstract class AbstractAsyncJob implements AsyncJob {
   private $inform = TRUE;
 
   /**
-   * @var array
-   */
-  protected $data = [];
-
-  /**
    * AbstractAsyncJob constructor.
    *
    * @param string $priority
@@ -355,43 +350,9 @@ abstract class AbstractAsyncJob implements AsyncJob {
     return $this->inform;
   }
 
-  /**
-   * Set data.
-   *
-   * @param array $data
-   *
-   * @return self
-   */
-  public function setData(array $data) : self {
-    $this->data = $data;
-
-    return $this;
-  }
-
-  /**
-   * Get data.
-   *
-   * @return array
-   */
-  public function getData() : array {
-    $this->data['job'] = $this;
-
-    return $this->data;
-  }
-
   /****************************************************************************/
   /* CUSTOM                                                                   */
   /****************************************************************************/
-
-  /**
-   * Set data value.
-   *
-   * @param $key
-   * @param $value
-   */
-  public function setDataValue($key, $value) : void {
-    $this->data[$key] = $value;
-  }
 
   /**
    * Get queue for job.
