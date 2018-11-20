@@ -325,8 +325,6 @@ class RunnerCommand extends Command {
       }
 
       $this->mailer->send($message);
-      var_dump($message->getSubject());
-      var_dump($message->getBody());
 
       $this->outputAndLog('Informing '.$email.' about job ID '.$job->getId().' %RUNNER_ID%.', 'info');
 
