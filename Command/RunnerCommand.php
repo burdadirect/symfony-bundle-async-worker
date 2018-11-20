@@ -90,7 +90,7 @@ class RunnerCommand extends Command {
   }
 
   protected function initialize(InputInterface $input, OutputInterface $output) {
-    $this->runnerId = $input->getArgument('runner-id');
+    $this->runnerId = $input->getArgument('runner');
 
     $this->input = $input;
     $this->output = $output;
