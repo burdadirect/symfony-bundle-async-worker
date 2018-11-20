@@ -32,11 +32,11 @@ class Messenger {
   /****************************************************************************/
   /* STATUS                                                                   */
   /****************************************************************************/
-  public const STATUS_TIMEOUT  = 'timeout';
-  public const STATUS_STOPPED  = 'stopped';
-  public const STATUS_STARTED  = 'started';
-  public const STATUS_IDLE     = 'idle';
-  public const STATUS_RUNNING  = 'running';
+  public const STATE_TIMEOUT  = 'timeout';
+  public const STATE_STOPPED  = 'stopped';
+  public const STATE_STARTED  = 'started';
+  public const STATE_IDLE     = 'idle';
+  public const STATE_RUNNING  = 'running';
 
   /**
    * @var array
@@ -136,36 +136,6 @@ class Messenger {
   }
 
   /**
-   * Expedites a delayed job.
-   *
-   * @param AbstractJob $job
-   *
-   * @return bool
-   */
-  public function expediteJob(AbstractJob $job) : bool {
-    if ($this->redis->zRank(self::SET_JOBS_DELAYED, $job->getId())) {
-      return $this->enqueueJob($job);
-    }
-
-    return FALSE;
-  }
-
-  /**
-   * Expedites a delayed job by id.
-   *
-   * @param string $jobId
-   *
-   * @return bool
-   */
-  public function expediteJobById(string $jobId) : bool {
-    if ($job = $this->getJob($jobId)) {
-      return $this->expediteJob($job);
-    }
-
-    return FALSE;
-  }
-
-  /**
    * Push the job on an empty spot of the delay list.
    *
    * @param AbstractJob $job
@@ -195,6 +165,65 @@ class Messenger {
     return (bool) $this->redis->rPush($job->getQueue(), $job->getId());
   }
 
+  /****************************************************************************/
+
+  /**
+   * @param AbstractJob $job
+   *
+   * @return bool|int
+   */
+  public function discardJob(AbstractJob $job) {
+    $this->resetJob($job);
+    return $this->redis->hDel(self::HASH_JOBS, $job->getId());
+  }
+
+  /**
+   * @param string $jobId
+   *
+   * @return bool|int
+   */
+  public function discardJobById(string $jobId) {
+    if ($job = $this->getJob($jobId)) {
+      return $this->discardJob($job);
+    }
+
+    return FALSE;
+  }
+
+  /****************************************************************************/
+
+  /**
+   * Expedites a delayed job.
+   *
+   * @param AbstractJob $job
+   *
+   * @return bool
+   */
+  public function expediteJob(AbstractJob $job) : bool {
+    if ($this->redis->zRank(self::SET_JOBS_DELAYED, $job->getId())) {
+      return $this->enqueueJob($job);
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Expedites a delayed job by id.
+   *
+   * @param string $jobId
+   *
+   * @return bool
+   */
+  public function expediteJobById(string $jobId) : bool {
+    if ($job = $this->getJob($jobId)) {
+      return $this->expediteJob($job);
+    }
+
+    return FALSE;
+  }
+
+  /****************************************************************************/
+
   /**
    * Requeue an async job (for example after it has failed).
    *
@@ -203,6 +232,10 @@ class Messenger {
    * @return bool
    */
   public function requeueJob(AbstractJob $job) : bool {
+    $job->setExpires(NULL);
+    $job->setDelayed(NULL);
+    $job->setState(Job::STATE_RETRY);
+
     $this->resetJob($job);
 
     return $this->dispatchJob($job);
@@ -222,6 +255,8 @@ class Messenger {
 
     return FALSE;
   }
+
+  /****************************************************************************/
 
   /**
    * Enqueue due jobs.
@@ -253,16 +288,7 @@ class Messenger {
     return \count($expiredJobs);
   }
 
-  /**
-   * Get job.
-   *
-   * @param string $jobId
-   *
-   * @return string|AbstractJob|NULL
-   */
-  public function getJob(string $jobId) {
-    return $this->redis->hGet(self::HASH_JOBS, $jobId) ?: NULL;
-  }
+  /****************************************************************************/
 
   /**
    * Get all jobs.
@@ -282,6 +308,8 @@ class Messenger {
     return $this->redis->hLen(self::HASH_JOBS);
   }
 
+  /****************************************************************************/
+
   /**
    * Get all running jobs.
    *
@@ -299,6 +327,8 @@ class Messenger {
   public function countJobsRunning() : int {
     return $this->redis->hLen(self::HASH_JOBS_RUNNING);
   }
+
+  /****************************************************************************/
 
   /**
    * Get all failed jobs.
@@ -318,6 +348,8 @@ class Messenger {
     return $this->redis->hLen(self::HASH_JOBS_FAILED);
   }
 
+  /****************************************************************************/
+
   /**
    * Get all expired jobs.
    *
@@ -336,6 +368,8 @@ class Messenger {
     return $this->redis->hLen(self::HASH_JOBS_EXPIRED);
   }
 
+  /****************************************************************************/
+
   /**
    * Get jobs by id.
    *
@@ -353,6 +387,19 @@ class Messenger {
   }
 
   /**
+   * @param AbstractJob $job
+   */
+  protected function resetJob(AbstractJob $job) : void {
+    $this->redis->hDel(self::HASH_JOBS_RUNNING, $job->getId());
+    $this->redis->hDel(self::HASH_JOBS_FAILED, $job->getId());
+    $this->redis->hDel(self::HASH_JOBS_EXPIRED, $job->getId());
+
+    $this->redis->lRem($job->getQueue(), $job->getId(), 0);
+    $this->redis->zRem(self::SET_JOBS_DELAYED, $job);
+    $this->redis->zRem(self::SET_JOBS_EXPIRING, $job);
+  }
+
+  /**
    * Update job.
    *
    * @param AbstractJob $job
@@ -365,6 +412,17 @@ class Messenger {
       // Delete job to prevent double execution.
       $this->redis->hDel(self::HASH_JOBS, $job->getId());
     }
+  }
+
+  /**
+   * Get job.
+   *
+   * @param string $jobId
+   *
+   * @return string|AbstractJob|NULL
+   */
+  public function getJob(string $jobId) {
+    return $this->redis->hGet(self::HASH_JOBS, $jobId) ?: NULL;
   }
 
   /****************************************************************************/
@@ -424,23 +482,23 @@ class Messenger {
   }
 
   public function setRunnerStatusToRunning(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATUS_RUNNING);
+    return $this->setRunnerStatus($runnerId, self::STATE_RUNNING);
   }
 
   public function setRunnerStatusToIdle(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATUS_IDLE);
+    return $this->setRunnerStatus($runnerId, self::STATE_IDLE);
   }
 
   public function setRunnerStatusToTimeout(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATUS_TIMEOUT);
+    return $this->setRunnerStatus($runnerId, self::STATE_TIMEOUT);
   }
 
   public function setRunnerStatusToStopped(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATUS_STOPPED);
+    return $this->setRunnerStatus($runnerId, self::STATE_STOPPED);
   }
 
   public function setRunnerStatusToStarted(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATUS_STARTED);
+    return $this->setRunnerStatus($runnerId, self::STATE_STARTED);
   }
 
   /**
@@ -648,19 +706,6 @@ class Messenger {
   /****************************************************************************/
 
   /**
-   * @param AbstractJob $job
-   */
-  protected function resetJob(AbstractJob $job) : void {
-    $this->redis->hDel(self::HASH_JOBS_RUNNING, $job->getId());
-    $this->redis->hDel(self::HASH_JOBS_FAILED, $job->getId());
-    $this->redis->hDel(self::HASH_JOBS_EXPIRED, $job->getId());
-
-    $this->redis->lRem($job->getQueue(), $job->getId(), 0);
-    $this->redis->zRem(self::SET_JOBS_DELAYED, $job);
-    $this->redis->zRem(self::SET_JOBS_EXPIRING, $job);
-  }
-
-  /**
    * @param string $jobId
    */
   public function markJobAsCancelledById(string $jobId) : void {
@@ -674,7 +719,7 @@ class Messenger {
    */
   public function markJobAsCancelled(AbstractJob $job) : void {
     $job->setCancelled(new \DateTime('now'));
-    $job->setState(Job::STATUS_CANCELLED);
+    $job->setState(Job::STATE_CANCELLED);
     $this->updateJob($job);
   }
 
@@ -684,7 +729,7 @@ class Messenger {
    */
   public function markJobAsRunning(AbstractJob $job, string $runnerId) : void {
     $job->setStarted(new \DateTime('now'));
-    $job->setState(Job::STATUS_RUNNING);
+    $job->setState(Job::STATE_RUNNING);
     if ($runnerId) {
       $job->setRunnerExecuting($runnerId);
     }
@@ -698,7 +743,7 @@ class Messenger {
    * @param AbstractJob $job
    */
   public function markJobAsFailed(AbstractJob $job) : void {
-    $job->setState(Job::STATUS_FAILED);
+    $job->setState(Job::STATE_FAILED);
     $this->updateJob($job);
 
     $this->resetJob($job);
@@ -709,34 +754,11 @@ class Messenger {
    * @param AbstractJob $job
    */
   public function markJobAsExpired(AbstractJob $job) : void {
-    $job->setState(Job::STATUS_EXPIRED);
+    $job->setState(Job::STATE_EXPIRED);
     $this->updateJob($job);
 
     $this->resetJob($job);
     $this->redis->hSet(self::HASH_JOBS_EXPIRED, $job->getId(), TRUE);
-  }
-
-  /**
-   * @param AbstractJob $job
-   *
-   * @return bool|int
-   */
-  public function discardJob(AbstractJob $job) {
-    $this->resetJob($job);
-    return $this->redis->hDel(self::HASH_JOBS, $job->getId());
-  }
-
-  /**
-   * @param string $jobId
-   *
-   * @return bool|int
-   */
-  public function discardJobById(string $jobId) {
-    if ($job = $this->getJob($jobId)) {
-      return $this->discardJob($job);
-    }
-
-    return FALSE;
   }
 
 }

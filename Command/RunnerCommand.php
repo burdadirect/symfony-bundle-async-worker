@@ -300,7 +300,7 @@ class RunnerCommand extends Command {
    * @return bool
    */
   private function hasRunnerAlreadyBeenStarted() : bool {
-    if (!\in_array($this->messenger->getRunnerStatus($this->runnerId), [Messenger::STATUS_STOPPED, Messenger::STATUS_TIMEOUT], TRUE)) {
+    if (!\in_array($this->messenger->getRunnerStatus($this->runnerId), [Messenger::STATE_STOPPED, Messenger::STATE_TIMEOUT], TRUE)) {
       if ($this->input->getArgument('action') !== 'force') {
         $this->outputAndOrLog('Runner is already active %RUNNER_ID%.', 'debug');
         return TRUE;
@@ -318,12 +318,12 @@ class RunnerCommand extends Command {
    * @return bool
    */
   private function hasRunnerTimedOut(int $time_limit) : bool {
-    if ($this->messenger->getRunnerStatus($this->runnerId) === Messenger::STATUS_TIMEOUT) {
+    if ($this->messenger->getRunnerStatus($this->runnerId) === Messenger::STATE_TIMEOUT) {
       $this->messenger->setRunnerStatusToStopped($this->runnerId);
       $this->outputAndOrLog('Runner reset after timeout %RUNNER_ID%.', 'info');
     }
 
-    if ($this->messenger->getRunnerStatus($this->runnerId) !== Messenger::STATUS_STOPPED) {
+    if ($this->messenger->getRunnerStatus($this->runnerId) !== Messenger::STATE_STOPPED) {
       $start = $this->messenger->getRunnerStart($this->runnerId);
       if ($start && ($start->getTimestamp() < time() - $this->config['runner']['timeout'] * $time_limit)) {
         if ($this->input->getArgument('action') !== 'force') {

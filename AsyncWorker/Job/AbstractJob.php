@@ -57,7 +57,7 @@ abstract class AbstractJob implements Job {
   /**
    * @var string
    */
-  private $state;
+  private $state = JOB::STATE_NEW;
 
   /**
    * @var string

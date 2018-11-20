@@ -4,10 +4,12 @@ namespace HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces;
 
 interface Job {
 
-  public const STATUS_RUNNING   = 'running';
-  public const STATUS_FAILED    = 'failed';
-  public const STATUS_EXPIRED   = 'expired';
-  public const STATUS_CANCELLED = 'cancelled';
+  public const STATE_NEW       = 'new';
+  public const STATE_RETRY     = 'retry';
+  public const STATE_RUNNING   = 'running';
+  public const STATE_FAILED    = 'failed';
+  public const STATE_EXPIRED   = 'expired';
+  public const STATE_CANCELLED = 'cancelled';
 
   /**
    * Return the class of the executor.
