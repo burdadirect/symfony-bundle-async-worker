@@ -37,7 +37,7 @@ class AppKernel extends Kernel
         $bundles = array(
             // ...
 
-            new HBM\AsyncBundle\HBMAsyncBundle(),
+            new HBM\AsyncWorkerBundle\HBMAsyncWorkerBundle(),
         );
 
         // ...
@@ -51,8 +51,8 @@ class AppKernel extends Kernel
 ### Configuration
 
 ```yml
-hbm_async:
-    worker:
+hbm_async_worker:
+    runner:
         ids:
           - ernie
           - bert
@@ -67,12 +67,11 @@ hbm_async:
         - queue.priority.high
     error:
         log: true
-        file: /var/log/php-async.log
+        file: /var/log/php-async-worker.log
     mail:
         defaultTo: 
-        fromName: 'Async Worker'
+        fromName: 'HBM Async Worker'
         fromMail: 'async@example.com'
-        subject: 'Async job finished (###IDENTIFIER###)'
     output:
         formats:
             debug:     { foreground: null,    background: null, options: [] }

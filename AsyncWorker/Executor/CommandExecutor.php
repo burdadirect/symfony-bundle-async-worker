@@ -1,9 +1,9 @@
 <?php
 
-namespace HBM\AsyncBundle\Async\Executor;
+namespace HBM\AsyncWorkerBundle\AsyncWorker\Executor;
 
-use HBM\AsyncBundle\Async\Job\AbstractAsyncJob;
-use HBM\AsyncBundle\Async\Job\AsyncCommand;
+use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
+use HBM\AsyncWorkerBundle\AsyncWorker\Job\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -15,8 +15,8 @@ class CommandExecutor extends AbstractExecutor {
   /**
    * @inheritdoc
    */
-  public function executeInternal(AbstractAsyncJob $job) : void {
-    if (!$job instanceof AsyncCommand) {
+  public function executeInternal(AbstractJob $job) : void {
+    if (!$job instanceof Command) {
       throw new \LogicException('Job is of wrong type.');
     }
 

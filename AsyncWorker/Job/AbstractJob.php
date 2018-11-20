@@ -1,14 +1,13 @@
 <?php
 
-namespace HBM\AsyncBundle\Async\Job;
+namespace HBM\AsyncWorkerBundle\AsyncWorker\Job;
 
-
-use HBM\AsyncBundle\Async\Job\Interfaces\AsyncJob;
+use HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces\Job;
 
 /**
- * Class AbstractAsyncJob.
+ * Class AbstractJob.
  */
-abstract class AbstractAsyncJob implements AsyncJob {
+abstract class AbstractJob implements Job {
 
   /**
    * @var string
@@ -23,12 +22,12 @@ abstract class AbstractAsyncJob implements AsyncJob {
   /**
    * @var string
    */
-  private $workerDesired;
+  private $runnerDesired;
 
   /**
    * @var string
    */
-  private $workerExecuting;
+  private $runnerExecuting;
 
   /**
    * @var \DateTime
@@ -71,16 +70,16 @@ abstract class AbstractAsyncJob implements AsyncJob {
   private $inform = TRUE;
 
   /**
-   * AbstractAsyncJob constructor.
+   * AbstractJob constructor.
    *
    * @param string $priority
-   * @param string $workerId
+   * @param string $runnerId
    */
-  public function __construct(string $priority, string $workerId = NULL) {
+  public function __construct(string $priority, string $runnerId = NULL) {
     $this->id = uniqid('', TRUE);
     $this->setCreated(new \DateTime('now'));
     $this->setPriority($priority);
-    $this->setWorkerDesired($workerId);
+    $this->setRunnerDesired($runnerId);
   }
 
   /**
@@ -131,47 +130,47 @@ abstract class AbstractAsyncJob implements AsyncJob {
   }
 
   /**
-   * Set desired worker.
+   * Set desired runner.
    *
-   * @param string|NULL $workerDesired
+   * @param string|NULL $runnerDesired
    *
    * @return self
    */
-  public function setWorkerDesired(string $workerDesired = NULL) : self {
-    $this->workerDesired = $workerDesired;
+  public function setRunnerDesired(string $runnerDesired = NULL) : self {
+    $this->runnerDesired = $runnerDesired;
 
     return $this;
   }
 
   /**
-   * Get desired worker.
+   * Get desired runner.
    *
    * @return string|NULL
    */
-  public function getWorkerDesired() : ?string {
-    return $this->workerDesired;
+  public function getRunnerDesired() : ?string {
+    return $this->runnerDesired;
   }
 
   /**
-   * Set executing worker.
+   * Set executing runner.
    *
-   * @param string|NULL $workerExecuting
+   * @param string|NULL $runnerExecuting
    *
    * @return self
    */
-  public function setWorkerExecuting(string $workerExecuting = NULL) : self {
-    $this->workerExecuting = $workerExecuting;
+  public function setRunnerExecuting(string $runnerExecuting = NULL) : self {
+    $this->runnerExecuting = $runnerExecuting;
 
     return $this;
   }
 
   /**
-   * Get executing worker.
+   * Get executing runner.
    *
    * @return string|NULL
    */
-  public function getWorkerExecuting() : ?string {
-    return $this->workerExecuting;
+  public function getRunnerExecuting() : ?string {
+    return $this->runnerExecuting;
   }
 
   /**
@@ -360,8 +359,8 @@ abstract class AbstractAsyncJob implements AsyncJob {
    * @return string
    */
   public function getQueue() : string {
-    if ($this->getWorkerDesired()) {
-      return $this->getPriority().'.'.$this->getWorkerDesired();
+    if ($this->getRunnerDesired()) {
+      return $this->getPriority().'.'.$this->getRunnerDesired();
     }
 
     return $this->getPriority();
@@ -371,7 +370,7 @@ abstract class AbstractAsyncJob implements AsyncJob {
    * @inheritdoc
    */
   public function getTemplateFolder(): string {
-    return 'HBMAsyncBundle:';
+    return '@HBMAsync';
   }
 
 }

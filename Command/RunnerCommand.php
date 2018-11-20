@@ -1,12 +1,13 @@
 <?php
 
-namespace HBM\AsyncBundle\Command;
+namespace HBM\AsyncWorkerBundle\Command;
 
-use HBM\AsyncBundle\Async\Executor\AbstractExecutor;
-use HBM\AsyncBundle\Async\Job\AbstractAsyncJob;
-use HBM\AsyncBundle\Services\Messenger;
+use HBM\AsyncWorkerBundle\AsyncWorker\Executor\AbstractExecutor;
+use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
+use HBM\AsyncWorkerBundle\Services\Messenger;
+use LongRunning\Core\Cleaner;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Console\Command\Command;
+use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
@@ -14,12 +15,12 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Templating\EngineInterface;
 
-class WorkerCommand extends Command {
+class RunnerCommand extends ContainerAwareCommand {
 
   /**
    * @var string
    */
-  public const NAME = 'hbm:async:worker';
+  public const NAME = 'hbm:async_worker:run';
 
   /**
    * @var array
@@ -47,9 +48,14 @@ class WorkerCommand extends Command {
   private $templating;
 
   /**
+   * @var Cleaner
+   */
+  private $cleaner;
+
+  /**
    * @var string
    */
-  private $workerId;
+  private $runnerId;
 
   /**
    * @var OutputInterface
@@ -61,10 +67,11 @@ class WorkerCommand extends Command {
    */
   private $input;
 
-  public function __construct(array $config, Messenger $messenger, LoggerInterface $logger, \Swift_Mailer $mailer = NULL, EngineInterface $templating = NULL) {
+  public function __construct(array $config, Messenger $messenger, Cleaner $cleaner, LoggerInterface $logger, \Swift_Mailer $mailer = NULL, EngineInterface $templating = NULL) {
     $this->config = $config;
 
     $this->messenger = $messenger;
+    $this->cleaner = $cleaner;
     $this->logger = $logger;
     $this->mailer = $mailer;
     $this->templating = $templating;
@@ -75,15 +82,15 @@ class WorkerCommand extends Command {
   protected function configure() {
     $this
       ->setName(self::NAME)
-      ->addArgument('worker-id', InputArgument::REQUIRED, 'The ID of the worker. Could be any integer/string. Just to identify this worker.')
+      ->addArgument('runner', InputArgument::REQUIRED, 'The ID of the runner. Could be any integer/string. Just to identify this runner.')
       ->addArgument('action', InputArgument::OPTIONAL, 'The action to perform. Possible values are: start, kill, force. Default: "start"')
-      ->addOption('log', NULL, InputOption::VALUE_NONE, 'Log to channel "cc2_worker" instead of writing to console output.')
-      ->addOption('console', NULL, InputOption::VALUE_NONE, 'Output command output to worker console.')
-      ->setDescription('Run the worker.');
+      ->addOption('log', NULL, InputOption::VALUE_NONE, 'Log to channel instead of writing to console output.')
+      ->addOption('console', NULL, InputOption::VALUE_NONE, 'Output command output to runner console.')
+      ->setDescription('Run the runner.');
   }
 
   protected function initialize(InputInterface $input, OutputInterface $output) {
-    $this->workerId = $input->getArgument('worker-id');
+    $this->runnerId = $input->getArgument('runner-id');
 
     $this->input = $input;
     $this->output = $output;
@@ -114,11 +121,11 @@ class WorkerCommand extends Command {
     }
 
     /**************************************************************************/
-    /* KILL WORKER                                                            */
+    /* KILL RUNNER                                                            */
     /**************************************************************************/
     if ($input->getArgument('action') === 'kill') {
-      $this->messenger->setWorkerKilled($this->workerId, TRUE);
-      $this->outputAndLog('Sent kill request to worker with ID '.$this->workerId.'.', 'info');
+      $this->messenger->setRunnerKilled($this->runnerId, TRUE);
+      $this->outputAndLog('Sent kill request %RUNNER_ID%.', 'info');
       return;
     }
 
@@ -126,7 +133,7 @@ class WorkerCommand extends Command {
     /* RUN SINGLE COMMAND                                                     */
     /**************************************************************************/
     if ($input->getArgument('action') === 'single') {
-      $this->outputAndLog('Running a single job using worker with ID '.$this->workerId.'.', 'info');
+      $this->outputAndLog('Running a single job %RUNNER_ID%.', 'info');
       $this->executeOne();
       return;
     }
@@ -137,70 +144,70 @@ class WorkerCommand extends Command {
     /*
      * We'll set our base time, which is one hour (in seconds).
      * Once we have our base time, we'll add anywhere between 0
-     * to 10 minutes randomly, so all workers won't stop at the
+     * to 10 minutes randomly, so all runners won't stop at the
      * same time.
      */
-    $time_limit = $this->config['worker']['runtime']; // Minimum running time
-    $time_limit += random_int(0, $this->config['worker']['runtime']); // Adding additional time
+    $time_limit = $this->config['runner']['runtime']; // Minimum running time
+    $time_limit += random_int(0, $this->config['runner']['runtime']); // Adding additional time
 
     // Set the start time
     $start_time = time();
 
     /**************************************************************************/
-    /* CHECK IF WORKER HAS TIMED OUT                                          */
+    /* CHECK IF RUNNER HAS TIMED OUT                                          */
     /**************************************************************************/
-    if ($this->hasWorkerTimedOut($time_limit)) {
+    if ($this->hasRunnerTimedOut($time_limit)) {
       return;
     }
 
     /**************************************************************************/
-    /* CHECK IF WORKER IS ALREADY STARTED/RUNNING/IDLE                        */
+    /* CHECK IF RUNNER IS ALREADY STARTED/RUNNING/IDLE                        */
     /**************************************************************************/
-    if ($this->hasWorkerAlreadyBeenStarted()) {
+    if ($this->hasRunnerAlreadyBeenStarted()) {
       return;
     }
 
     /**************************************************************************/
-    /* CHECK IF WORKER HAS BEEN KILLED                                        */
+    /* CHECK IF RUNNER HAS BEEN KILLED                                        */
     /**************************************************************************/
-    if ($this->hasWorkerBeenKilled()) {
+    if ($this->hasRunnerBeenKilled()) {
       return;
     }
 
     /**************************************************************************/
-    /* START WORKER                                                           */
+    /* START RUNNER                                                           */
     /**************************************************************************/
-    $this->messenger->setWorkerStatusToStarted($this->workerId);
-    $this->outputAndLog('Worker started (worker ID '.$this->workerId.').', 'info');
+    $this->messenger->setRunnerStatusToStarted($this->runnerId);
+    $this->outputAndLog('Runner started %RUNNER_ID%.', 'info');
 
-    // Set the last time this worker checked in, use this to
+    // Set the last time this runner checked in, use this to
     // help determine when scripts die
-    $this->messenger->setWorkerStart($this->workerId, time());
+    $this->messenger->setRunnerStart($this->runnerId, time());
 
     /**************************************************************************/
-    /* RUN WORKER                                                             */
+    /* POLLING                                                                */
     /**************************************************************************/
     while (time() < $start_time + $time_limit) {
       // Execute queued job.
       $this->executeOne();
 
-      // Check if worker has been killed.
-      if ($this->hasWorkerBeenKilled()) {
+      // Check if runner has been killed.
+      if ($this->hasRunnerBeenKilled()) {
         return;
       }
 
-      // Setting worker status to idle
-      $this->messenger->setWorkerStatusToIdle($this->workerId);
+      // Setting runner status to idle
+      $this->messenger->setRunnerStatusToIdle($this->runnerId);
 
       // Enqueue delayed jobs which are now due.
       if ($numOfEnqueuedJobs = $this->messenger->enqueueDelayedJobs()) {
-        $this->outputAndLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs (worker ID '.$this->workerId.').', 'info');
+        $this->outputAndLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs %RUNNER_ID%.', 'info');
       }
     }
 
-    // Setting the worker status to started
-    $this->messenger->setWorkerStatusToStopped($this->workerId);
-    $this->outputAndLog('Planned shutdown (worker ID '.$this->workerId.')! Waiting for restart...', 'info');
+    // Setting the runner status to started
+    $this->messenger->setRunnerStatusToStopped($this->runnerId);
+    $this->outputAndLog('Planned shutdown %RUNNER_ID%! Waiting for restart...', 'info');
   }
 
   /**
@@ -208,113 +215,120 @@ class WorkerCommand extends Command {
    * underlying command.
    */
   private function executeOne() : void {
-    if ($asyncJobId = $this->messenger->popJobId($this->workerId, $queue, $this->config['worker']['block'])) {
+    if ($jobId = $this->messenger->popJobId($this->runnerId, $queue, $this->config['runner']['block'])) {
       $this->output->writeln('');
 
-      if (!$asyncJob = $this->messenger->getJob($asyncJobId)) {
-        $this->outputAndLog('Job ID '.$asyncJob->getId().' discarded (missing) (worker ID '.$this->workerId.').', 'info');
+      if (!$job = $this->messenger->getJob($jobId)) {
+        $this->outputAndLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
         return;
       }
 
       /************************************************************************/
-      /* SETTING WORKER STATUS TO RUNNING                                     */
+      /* SETTING RUNNER STATUS TO RUNNING                                     */
       /************************************************************************/
-      $this->messenger->setWorkerStatusToRunning($this->workerId);
+      $this->messenger->setRunnerStatusToRunning($this->runnerId);
 
-      $this->outputAndLog('Found job ID '.$asyncJob->getId().' in queue "'.$queue.'" (worker ID '.$this->workerId.').', 'debug');
+      $this->outputAndLog('Found job ID '.$job->getId().' in queue "'.$queue.'" %RUNNER_ID%.', 'debug');
 
       /************************************************************************/
       /* CHECK IF JOB IS CANCELLED                                            */
       /************************************************************************/
-      if ($asyncJob->getCancelled()) {
-        $this->outputAndLog('Cancelled job ID '.$asyncJob->getId().' discarded (cancelled) (worker ID '.$this->workerId.').', 'info');
-        $this->messenger->discardJob($asyncJob);
+      if ($job->getCancelled()) {
+        $this->outputAndLog('Cancelled job ID '.$job->getId().' discarded (cancelled) %RUNNER_ID%.', 'info');
+        $this->messenger->discardJob($job);
       }
 
       /************************************************************************/
       /* EXECUTE JOB USING CORRESPONDING EXECUTOR                             */
       /************************************************************************/
 
-      $executor = $this->getExecutorForJob($asyncJob);
+      $executor = $this->getExecutorForJob($job);
       try {
         // Save async job if anything fails during execution
-        $this->messenger->markJobAsRunning($asyncJob, $this->workerId);
+        $this->messenger->markJobAsRunning($job, $this->runnerId);
 
-        $executor->execute($asyncJob);
+        $executor->execute($job);
 
         // Delete async job if everything went fine
-        $this->messenger->discardJob($asyncJob);
+        $this->messenger->discardJob($job);
       } catch (\Exception $e) {
-        $this->outputAndLog('Job ID '.$asyncJob->getId().' failed (worker ID '.$this->workerId.'). Message: '.$e->getMessage(), 'error');
-        $this->messenger->markJobAsFailed($asyncJob);
+        $this->outputAndLog('Job ID '.$job->getId().' failed %RUNNER_ID%. Message: '.$e->getMessage(), 'error');
+        $this->messenger->markJobAsFailed($job);
       }
 
       /************************************************************************/
       /* SEND INFORMER MAIL                                                   */
       /************************************************************************/
-      $this->informAboutJob($asyncJob, $executor->getReturnData());
+      $this->informAboutJob($job, $executor->getReturnData());
 
       /************************************************************************/
       /* OUTPUT RESULT                                                        */
       /************************************************************************/
       if ($executor->getReturnCode() === NULL) {
-        $this->outputAndLog('Job ID '.$asyncJob->getId().' invalid (worker ID '.$this->workerId.').', 'alert');
+        $this->outputAndLog('Job ID '.$job->getId().' invalid %RUNNER_ID%.', 'alert');
       } elseif ($executor->getReturnCode() === 0) {
-        $this->outputAndLog('Job ID '.$asyncJob->getId().' successful (worker ID '.$this->workerId.').', 'info');
+        $this->outputAndLog('Job ID '.$job->getId().' successful %RUNNER_ID%.', 'info');
       } else {
-        $this->outputAndLog('Job ID '.$asyncJob->getId().' erroneous (worker ID '.$this->workerId.').', 'error');
+        $this->outputAndLog('Job ID '.$job->getId().' erroneous %RUNNER_ID%.', 'error');
       }
 
       $this->output->writeln('');
+
+      /************************************************************************/
+      /* CLEANUP (doctrine_orm, doctrine_dbal, monolog, swift_mailer spool)   */
+      /************************************************************************/
+      $this->cleaner->cleanUp();
     }
   }
 
   /**
    * Inform about job execution via email.
    *
-   * @param AbstractAsyncJob $asyncJob
+   * @param AbstractJob $job
    * @param array $returnData
    *
    * @return bool
    */
-  private function informAboutJob(AbstractAsyncJob $asyncJob, array $returnData) : bool {
+  private function informAboutJob(AbstractJob $job, array $returnData) : bool {
     $email = $this->config['mail']['to'];
-    if ($asyncJob->getEmail()) {
-      $email = $asyncJob->getEmail();
+    if ($job->getEmail()) {
+      $email = $job->getEmail();
     }
 
     // Check if email should be sent.
-    if ($email && $this->mailer && $this->config['mail']['fromAddress'] && $asyncJob->getInform()) {
+    if ($email && $this->mailer && $this->config['mail']['fromAddress'] && $job->getInform()) {
       $message = new \Swift_Message();
       $message->setTo($email);
       $message->setFrom($this->config['mail']['fromAddress'], $this->config['mail']['fromName']);
 
       // Render subject.
       $subject = $this->renderTemplateChain([
-        $asyncJob->getTemplateFolder().':body.text.twig',
-        'HBMAsyncBundle:subject.text.twig',
+        $job->getTemplateFolder().'subject.text.twig',
+        '@HBMAsync/subject.text.twig',
       ], $returnData);
       $message->setSubject($subject);
 
       // Render text body.
       $body = $this->renderTemplateChain([
-        $asyncJob->getTemplateFolder().':body.text.twig',
-        'HBMAsyncBundle:body.text.twig',
+        $job->getTemplateFolder().'body.text.twig',
+        '@HBMAsync/body.text.twig',
       ], $returnData);
       $message->setBody($body, 'text/plain');
 
       // Render html body.
       $body = $this->renderTemplateChain([
-        $asyncJob->getTemplateFolder().':body.html.twig',
-        'HBMAsyncBundle:body.html.twig',
+        $job->getTemplateFolder().'body.html.twig',
+        '@HBMAsync/body.html.twig',
       ], $returnData);
       if ($body) {
         $message->setBody($body, 'text/html');
       }
 
       $this->mailer->send($message);
+      var_dump($message->getSubject());
+      var_dump($message->getBody());
 
-      $this->outputAndLog('Informing '.$email.' about job ID '.$asyncJob->getId().' (worker ID '.$this->workerId.').', 'info');
+      $this->outputAndLog('Informing '.$email.' about job ID '.$job->getId().' %RUNNER_ID%.', 'info');
 
       return FALSE;
     }
@@ -345,14 +359,14 @@ class WorkerCommand extends Command {
   }
 
   /**
-   * Check if worker has already been started.
+   * Check if runner has already been started.
    *
    * @return bool
    */
-  private function hasWorkerAlreadyBeenStarted() : bool {
-    if (!\in_array($this->messenger->getWorkerStatus($this->workerId), [Messenger::STATUS_STOPPED, Messenger::STATUS_TIMEOUT], TRUE)) {
+  private function hasRunnerAlreadyBeenStarted() : bool {
+    if (!\in_array($this->messenger->getRunnerStatus($this->runnerId), [Messenger::STATUS_STOPPED, Messenger::STATUS_TIMEOUT], TRUE)) {
       if ($this->input->getArgument('action') !== 'force') {
-        $this->outputAndLog('Worker is already running (worker ID '.$this->workerId.').', 'debug');
+        $this->outputAndLog('Runner is already active %RUNNER_ID%.', 'debug');
         return TRUE;
       }
     }
@@ -361,24 +375,24 @@ class WorkerCommand extends Command {
   }
 
   /**
-   * Check if worker has timed out.
+   * Check if runner has timed out.
    *
    * @param int $time_limit
    *
    * @return bool
    */
-  private function hasWorkerTimedOut(int $time_limit) : bool {
-    if ($this->messenger->getWorkerStatus($this->workerId) === Messenger::STATUS_TIMEOUT) {
-      $this->messenger->setWorkerStatusToStopped($this->workerId);
-      $this->outputAndLog('Worker reset after timeout (worker ID '.$this->workerId.').', 'info');
+  private function hasRunnerTimedOut(int $time_limit) : bool {
+    if ($this->messenger->getRunnerStatus($this->runnerId) === Messenger::STATUS_TIMEOUT) {
+      $this->messenger->setRunnerStatusToStopped($this->runnerId);
+      $this->outputAndLog('Runner reset after timeout %RUNNER_ID%.', 'info');
     }
 
-    if ($this->messenger->getWorkerStatus($this->workerId) !== Messenger::STATUS_STOPPED) {
-      $start = $this->messenger->getWorkerStart($this->workerId);
-      if ($start && ($start->getTimestamp() < time() - $this->config['worker']['timeout'] * $time_limit)) {
+    if ($this->messenger->getRunnerStatus($this->runnerId) !== Messenger::STATUS_STOPPED) {
+      $start = $this->messenger->getRunnerStart($this->runnerId);
+      if ($start && ($start->getTimestamp() < time() - $this->config['runner']['timeout'] * $time_limit)) {
         if ($this->input->getArgument('action') !== 'force') {
-          $this->messenger->setWorkerStatusToTimeout($this->workerId);
-          $this->outputAndLog('Worker has timed out (worker ID '.$this->workerId.').', 'alert');
+          $this->messenger->setRunnerStatusToTimeout($this->runnerId);
+          $this->outputAndLog('Runner has timed out %RUNNER_ID%.', 'alert');
           return TRUE;
         }
       }
@@ -388,18 +402,18 @@ class WorkerCommand extends Command {
   }
 
   /**
-   * Check if worker has been killed.
+   * Check if runner has been killed.
    *
    * @return bool
    */
-  private function hasWorkerBeenKilled() : bool {
-    if ($this->messenger->isWorkerKilled($this->workerId))	{
+  private function hasRunnerBeenKilled() : bool {
+    if ($this->messenger->isRunnerKilled($this->runnerId))	{
       // Make sure to unset the kill request before exiting, or
-      // your worker will just keep restarting.
-      $this->messenger->setWorkerKilled($this->workerId, FALSE);
-      $this->messenger->setWorkerStatusToStopped($this->workerId);
+      // your runner will just keep restarting.
+      $this->messenger->setRunnerKilled($this->runnerId, FALSE);
+      $this->messenger->setRunnerStatusToStopped($this->runnerId);
 
-      $this->outputAndLog('Kill request detected (worker ID '.$this->workerId.')! Waiting for restart...', 'notice');
+      $this->outputAndLog('Kill request detected %RUNNER_ID%! Waiting for restart...', 'notice');
 
       return TRUE;
     }
@@ -414,6 +428,11 @@ class WorkerCommand extends Command {
    * @param $level
    */
   private function outputAndLog($message, $level) : void {
+    $searchReplace = [
+      '%RUNNER_ID%' => '(runner id "'.$this->runnerId.'")',
+    ];
+    $message = str_replace(array_keys($searchReplace), array_values($searchReplace), $message);
+
     if ($this->input->getOption('log')) {
       $this->logger->log($level, $message);
     }
@@ -440,12 +459,12 @@ class WorkerCommand extends Command {
   /**
    * Create Executor instance.
    *
-   * @param AbstractAsyncJob $asyncJob
+   * @param AbstractJob $job
    *
    * @return AbstractExecutor
    */
-  private function getExecutorForJob(AbstractAsyncJob $asyncJob) : AbstractExecutor {
-    $executorClass = $asyncJob->getExecutorClass();
+  private function getExecutorForJob(AbstractJob $job) : AbstractExecutor {
+    $executorClass = $job->getExecutorClass();
 
     return new $executorClass($this->getApplication(), $this->config);
   }

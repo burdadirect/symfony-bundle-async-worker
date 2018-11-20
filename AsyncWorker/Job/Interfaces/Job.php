@@ -1,11 +1,11 @@
 <?php
 
-namespace HBM\AsyncBundle\Async\Job\Interfaces;
+namespace HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces;
 
-interface AsyncJob {
+interface Job {
 
-  public const STATUS_RUNNING = 'running';
-  public const STATUS_FAILED = 'failed';
+  public const STATUS_RUNNING   = 'running';
+  public const STATUS_FAILED    = 'failed';
   public const STATUS_CANCELLED = 'cancelled';
 
   /**

@@ -13,7 +13,7 @@
   "type": "symfony-bundle",
   "autoload": {
     "psr-0": {
-      "HBM\\AsyncBundle": ""
+      "HBM\\AsyncWorkerBundle": ""
     }
   },
   "autoload-dev": {
@@ -29,12 +29,13 @@
     "symfony/config": "^3.4|^4.1",
     "symfony/console": "^3.4|^4.1",
     "symfony/dependency-injection": "^3.4|^4.1",
-    "symfony/swiftmailer-bundle": "^3.2"
+    "symfony/swiftmailer-bundle": "^3.2",
+    "long-running/long-running": "^0.3.0"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",
     "phpunit/phpunit" : "^6.5|^7.0",
     "symfony/phpunit-bridge": "^3.4|^4.0"
   },
-  "target-dir": "HBM/AsyncBundle"
+  "target-dir": "HBM/AsyncWorkerBundle"
 }

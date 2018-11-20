@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\HBM\AsyncBundle\Command;
+namespace Tests\HBM\AsyncWorkerBundle\Command;
 
 use PHPUnit\Framework\TestCase;
 

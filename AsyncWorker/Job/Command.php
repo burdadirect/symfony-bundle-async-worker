@@ -1,13 +1,13 @@
 <?php
 
-namespace HBM\AsyncBundle\Async\Job;
+namespace HBM\AsyncWorkerBundle\AsyncWorker\Job;
 
-use HBM\AsyncBundle\Async\Executor\CommandExecutor;
+use HBM\AsyncWorkerBundle\AsyncWorker\Executor\CommandExecutor;
 
 /**
  * Class AsyncCommand.
  */
-class AsyncCommand extends AbstractAsyncJob {
+class Command extends AbstractJob {
 
   /**
    * @var string
@@ -85,7 +85,7 @@ class AsyncCommand extends AbstractAsyncJob {
    * @inheritdoc
    */
   public function getTemplateFolder(): string {
-    return 'HBMAsyncBundle:AsyncCommand:';
+    return '@HBMAsync/AsyncCommand/';
   }
 
 }

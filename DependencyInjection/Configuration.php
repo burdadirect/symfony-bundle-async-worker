@@ -1,6 +1,6 @@
 <?php
 
-namespace HBM\AsyncBundle\DependencyInjection;
+namespace HBM\AsyncWorkerBundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -17,20 +17,20 @@ class Configuration implements ConfigurationInterface {
    */
   public function getConfigTreeBuilder() {
     $treeBuilder = new TreeBuilder();
-    $rootNode = $treeBuilder->root('hbm_async');
+    $rootNode = $treeBuilder->root('hbm_async_worker');
 
     $rootNode
       ->children()
-        ->arrayNode('worker')->addDefaultsIfNotSet()
+        ->arrayNode('runner')->addDefaultsIfNotSet()
           ->children()
             ->arrayNode('ids')->isRequired()
-              ->info('An array of worker names. Can be simple numbers or string names.')
+              ->info('An array of runner names. Can be simple numbers or string names.')
               ->prototype('scalar')->end()
               ->defaultValue(['main'])
             ->end()
-            ->scalarNode('runtime')->defaultValue(3600)->info('Seconds this worker is running (minimum)')->end()
-            ->scalarNode('fuzz')->defaultValue(600)->info('A random number of between 0 and this number of seconds will be added to the runtime to ensure not all worker will timeout at the same time.')->end()
-            ->scalarNode('timeout')->defaultValue(2.0)->info('After this times of the runtime+fuzz the worker is considerd timed out.')->end()
+            ->scalarNode('runtime')->defaultValue(3600)->info('Seconds this runner is active before automatic shutdown (minimum)')->end()
+            ->scalarNode('fuzz')->defaultValue(600)->info('A random number of between 0 and this number of seconds will be added to the runtime to ensure not all runners will timeout at the same time.')->end()
+            ->scalarNode('timeout')->defaultValue(2.0)->info('After this times of the runtime+fuzz the runner is considered timed out.')->end()
             ->scalarNode('block')->defaultValue(10)->info('Number of seconds connections keeps block if queues are empty.')->end()
           ->end()
         ->end()
@@ -42,7 +42,7 @@ class Configuration implements ConfigurationInterface {
         ->arrayNode('error')->addDefaultsIfNotSet()
           ->children()
             ->scalarNode('log')->defaultFalse()->end()
-            ->scalarNode('file')->defaultValue('/var/log/php-async.log')->end()
+            ->scalarNode('file')->defaultValue('/var/log/php-async-worker.log')->end()
           ->end()
         ->end()
         ->arrayNode('mail')->addDefaultsIfNotSet()

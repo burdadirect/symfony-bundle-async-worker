@@ -1,10 +1,11 @@
 <?php
 
-namespace Tests\HBM\AsyncBundle\Command;
+namespace Tests\HBM\AsyncWorkerBundle\Command;
 
-use HBM\AsyncBundle\Async\Job\AsyncCommand;
-use HBM\AsyncBundle\Command\WorkerCommand;
-use HBM\AsyncBundle\Services\Messenger;
+use HBM\AsyncWorkerBundle\AsyncWorker\Job\Command as AsyncCommand;
+use HBM\AsyncWorkerBundle\Command\RunnerCommand;
+use HBM\AsyncWorkerBundle\Services\Messenger;
+use LongRunning\Core\Cleaner;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
@@ -24,9 +25,9 @@ class WorkerCommandTest extends AbstractCommandTestCase {
   private $messenger;
 
   /**
-   * @var WorkerCommand
+   * @var RunnerCommand
    */
-  private $workerCommand;
+  private $runnerCommand;
 
   /**
    * @inheritdoc
@@ -46,39 +47,46 @@ class WorkerCommandTest extends AbstractCommandTestCase {
       ->disableOriginalConstructor()
       ->getMock();
 
+    /** @var Cleaner $cleaner */
+    $cleaner = $this->getMockBuilder(Cleaner::class)
+      ->disableOriginalConstructor()
+      ->getMock();
+
     /** @var \Swift_Mailer $mailer */
     $mailer = $this->getMockBuilder(\Swift_Mailer::class)
       ->disableOriginalConstructor()
       ->getMock();
+
     /** @var EngineInterface $templating */
     $templating = $this->getMockBuilder(EngineInterface::class)
       ->disableOriginalConstructor()
       ->getMock();
 
     $this->messenger = new Messenger($config, $redis, $logger);
-    $this->workerCommand = new WorkerCommand($config, $this->messenger, $logger, $mailer, $templating);
+    $this->runnerCommand = new RunnerCommand($config, $this->messenger, $cleaner, $logger, $mailer, $templating);
 
     $this->application = new Application();
-    $this->application->add($this->workerCommand);
+    $this->application->add($this->runnerCommand);
   }
 
-  public function testWorkerKill() : void {
-    $commandTester = new CommandTester($this->workerCommand);
+  public function testRunnerKill() : void {
+    $commandTester = new CommandTester($this->runnerCommand);
     $commandTester->execute([
-      'command'   => $this->workerCommand->getName(),
-      'worker-id' => 1,
-      'action'    => 'kill',
+      'command' => $this->runnerCommand->getName(),
+      'runner'  => 1,
+      'action'  => 'kill',
     ]);
 
     $commandDisplay = $commandTester->getDisplay();
     $commandString = $this->removeAnsiEscapeSequences($commandDisplay);
 
-    $this->assertContains('Sent kill request to worker with ID 1.', $commandString, 'Output should contain "Sent kill request to worker with ID 1.".');
+    $this->assertContains('Sent kill request to runner with ID 1.', $commandString, 'Output should contain "Sent kill request to runner with ID 1.".');
   }
 
-  public function testWorkerSingle() : void {
+  public function testRunnerSingle() : void {
     $queue = 'normal';
-    $workerId = 'john';
+    $runner = 'john';
+    $runnerLog = '(runner ID "john")';
 
     /**************************************************************************/
     /* DUMMY COMMAND                                                          */
@@ -98,31 +106,31 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     /**************************************************************************/
 
     $job = new AsyncCommand($queue);
-    $job->setWorkerDesired($workerId);
+    $job->setRunnerDesired($runner);
     $job->setCommand($dummyCommand->getName());
 
     $this->messenger->dispatchJob($job);
 
     /**************************************************************************/
-    /* WORKER                                                                 */
+    /* RUNNER                                                                 */
     /**************************************************************************/
 
     $this->application->add($dummyCommand);
 
-    $commandTester = new CommandTester($this->workerCommand);
+    $commandTester = new CommandTester($this->runnerCommand);
     $commandTester->execute([
-      'command'   => $this->workerCommand->getName(),
-      'worker-id' => $job->getWorkerDesired(),
-      'action'    => 'single',
+      'command' => $this->runnerCommand->getName(),
+      'runner'  => $job->getRunnerDesired(),
+      'action'  => 'single',
     ]);
 
     $commandDisplay = $commandTester->getDisplay();
     $commandString = $this->removeAnsiEscapeSequences($commandDisplay);
 
-    $this->assertContains('Running a single job using worker with ID '.$workerId.'.', $commandString, 'Output should contain "Running a single job...".');
-    $this->assertContains('Found job ID '.$job->getId().' in queue "'.$queue.'" (worker ID '.$workerId.').', $commandString, 'Output should contain "Found job ... in queue ... .".');
-    $this->assertContains('Informing development@playboy.de about job ID '.$job->getId().' (worker ID '.$workerId.').', $commandString, 'Output should contain "Informing ... about job ... .".');
-    $this->assertContains('Job ID '.$job->getId().' successful (worker ID '.$workerId.').', $commandString, 'Output should contain "Job ... successful.".');
+    $this->assertContains('Running a single job '.$runnerLog.'.', $commandString, 'Output should contain "Running a single job...".');
+    $this->assertContains('Found job ID '.$job->getId().' in queue "'.$queue.'" '.$runnerLog.'.', $commandString, 'Output should contain "Found job ... in queue ... .".');
+    $this->assertContains('Informing development@playboy.de about job ID '.$job->getId().' '.$runnerLog.'.', $commandString, 'Output should contain "Informing ... about job ... .".');
+    $this->assertContains('Job ID '.$job->getId().' successful '.$runnerLog.'.', $commandString, 'Output should contain "Job ... successful.".');
   }
 
 }
