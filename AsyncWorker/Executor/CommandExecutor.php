@@ -4,8 +4,8 @@ namespace HBM\AsyncWorkerBundle\AsyncWorker\Executor;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\Command;
+use HBM\AsyncWorkerBundle\Output\BufferedConsoleOutput;
 use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 
 /**
  * Class CommandExecutor.
@@ -15,7 +15,7 @@ class CommandExecutor extends AbstractExecutor {
   /**
    * @inheritdoc
    */
-  public function executeInternal(AbstractJob $job) : void {
+  public function executeInternal(AbstractJob $job, BufferedConsoleOutput $output) : void {
     if (!$job instanceof Command) {
       throw new \LogicException('Job is of wrong type.');
     }
@@ -28,12 +28,9 @@ class CommandExecutor extends AbstractExecutor {
     $arguments = $job->getArguments();
     $arguments['command'] = $command;
 
-    // Buffer output.
-    $bufferedOutput = new BufferedOutput();
-
     // Run command.
-    $this->setReturnCode($command->run(new ArrayInput($arguments), $bufferedOutput));
-    $this->setReturnDataValue('output', $bufferedOutput);
+    $this->setReturnCode($command->run(new ArrayInput($arguments), $output));
+    $this->setReturnDataValue('output', $output->getBufferedOutput()->fetch());
   }
 
 }

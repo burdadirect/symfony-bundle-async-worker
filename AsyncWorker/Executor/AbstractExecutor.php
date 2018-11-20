@@ -3,6 +3,7 @@
 namespace HBM\AsyncWorkerBundle\AsyncWorker\Executor;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
+use HBM\AsyncWorkerBundle\Output\BufferedConsoleOutput;
 use Symfony\Component\Console\Application;
 
 /**
@@ -103,12 +104,13 @@ abstract class AbstractExecutor  {
    * Execute async job.
    *
    * @param AbstractJob $job
+   * @param BufferedConsoleOutput $output
    *
    * @throws \Exception
    */
-  public function execute(AbstractJob $job) : void {
+  public function execute(AbstractJob $job, BufferedConsoleOutput $output) : void {
     $this->setReturnDataValue('job', $job);
-    $this->executeInternal($job);
+    $this->executeInternal($job, $output);
   }
 
   /****************************************************************************/
@@ -119,9 +121,10 @@ abstract class AbstractExecutor  {
    * Execute a async job. Populate data with job specific information.
    *
    * @param AbstractJob $job
+   * @param BufferedConsoleOutput $output
    *
    * @throws \Exception
    */
-  abstract protected function executeInternal(AbstractJob $job) : void;
+  abstract protected function executeInternal(AbstractJob $job, BufferedConsoleOutput $output) : void;
 
 }

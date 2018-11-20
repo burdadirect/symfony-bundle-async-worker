@@ -1,12 +1,27 @@
 services:
     _defaults: { public: true }
 
+    hbm.async_worker.logger:
+      class: HBM\AsyncWorkerBundle\Services\Logger
+      arguments: ['%hbm.async_worker%', '@logger']
+
     hbm.async_worker.messenger:
         class: HBM\AsyncWorkerBundle\Services\Messenger
-        arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis', '@logger']
+        arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis']
+        calls:
+            - [ setLogger, [ '@hbm.async_worker.logger' ] ]
+            - [ setOptions ]
+
+    hbm.async_worker.informer:
+        class: HBM\AsyncWorkerBundle\Services\Informer
+        arguments: ['%hbm.async_worker%', '@mailer', '@templating']
+        calls:
+            - [ setLogger, [ '@hbm.async_worker.logger' ] ]
 
     hbm.async_worker.runner:
         class: HBM\AsyncWorkerBundle\Command\RunnerCommand
-        arguments: ['%hbm.async_worker%', '@hbm.async_worker.messenger', '@long_running.delegating_cleaner', '@logger', '@mailer', '@templating']
+        arguments: ['%hbm.async_worker%', '@hbm.async_worker.messenger', '@hbm.async_worker.informer', '@long_running.delegating_cleaner']
+        calls:
+            - [ setLogger, [ '@hbm.async_worker.logger' ] ]
         tags:
             - { name: 'console.command' }

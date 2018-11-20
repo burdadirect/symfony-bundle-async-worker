@@ -4,9 +4,11 @@ namespace HBM\AsyncWorkerBundle\Services;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces\Job;
-use Psr\Log\LoggerInterface;
+use HBM\AsyncWorkerBundle\Traits\LoggerTrait;
 
 class Messenger {
+
+  use LoggerTrait;
 
   /****************************************************************************/
   /* SET                                                                      */
@@ -45,26 +47,24 @@ class Messenger {
   private $redis;
 
   /**
-   * @var LoggerInterface
-   */
-  private $logger;
-
-  /**
    * Messenger constructor.
    *
    * @param array $config
    * @param \Redis|NULL $redis
-   * @param LoggerInterface|NULL $logger
    */
-  public function __construct(array $config, \Redis $redis, LoggerInterface $logger) {
+  public function __construct(array $config, \Redis $redis) {
     $this->config = $config;
     $this->redis = $redis;
-    $this->logger = $logger;
+  }
 
+  /**
+   * Set redis options.
+   */
+  public function setOptions() : void {
     try {
       $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
     } catch (\Exception $re) {
-      $this->log('Redis is not available.', 'critical');
+      $this->outputAndOrLog('Redis is not available.', 'critical');
     }
   }
 
@@ -79,16 +79,10 @@ class Messenger {
         return TRUE;
       }
     } catch (\Exception $re) {
-      $this->log('Redis is not available.', 'critical');
+      $this->outputAndOrLog('Redis is not available.', 'critical');
     }
 
     return FALSE;
-  }
-
-  public function log($message, $level = 'error') : void {
-    if ($this->logger) {
-      $this->logger->log($message, $level);
-    }
   }
 
   /**

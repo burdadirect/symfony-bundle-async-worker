@@ -4,18 +4,22 @@ namespace HBM\AsyncWorkerBundle\Command;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Executor\AbstractExecutor;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
+use HBM\AsyncWorkerBundle\Output\BufferedConsoleOutput;
+use HBM\AsyncWorkerBundle\Services\Informer;
 use HBM\AsyncWorkerBundle\Services\Messenger;
+use HBM\AsyncWorkerBundle\Traits\LoggerTrait;
 use LongRunning\Core\Cleaner;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Formatter\OutputFormatterStyle;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Templating\EngineInterface;
 
 class RunnerCommand extends Command {
+
+  use LoggerTrait;
 
   /**
    * @var string
@@ -33,19 +37,9 @@ class RunnerCommand extends Command {
   private $messenger;
 
   /**
-   * @var LoggerInterface
+   * @var Informer
    */
-  private $logger;
-
-  /**
-   * @var \Swift_Mailer
-   */
-  private $mailer;
-
-  /**
-   * @var EngineInterface
-   */
-  private $templating;
+  private $informer;
 
   /**
    * @var Cleaner
@@ -58,23 +52,16 @@ class RunnerCommand extends Command {
   private $runnerId;
 
   /**
-   * @var OutputInterface
-   */
-  private $output;
-
-  /**
    * @var InputInterface
    */
   private $input;
 
-  public function __construct(array $config, Messenger $messenger, Cleaner $cleaner, LoggerInterface $logger, \Swift_Mailer $mailer = NULL, EngineInterface $templating = NULL) {
+  public function __construct(array $config, Messenger $messenger, Informer $informer, Cleaner $cleaner) {
     $this->config = $config;
 
     $this->messenger = $messenger;
+    $this->informer = $informer;
     $this->cleaner = $cleaner;
-    $this->logger = $logger;
-    $this->mailer = $mailer;
-    $this->templating = $templating;
 
     parent::__construct();
   }
@@ -91,11 +78,17 @@ class RunnerCommand extends Command {
 
   protected function initialize(InputInterface $input, OutputInterface $output) {
     $this->runnerId = $input->getArgument('runner');
-
     $this->input = $input;
-    $this->output = $output;
 
-    $this->prettifyOutput();
+   /**************************************************************************/
+    /* PREPARE LOGGING                                                        */
+    /**************************************************************************/
+
+    $this->setLogChannel($this->input->getOption('log'));
+    $this->setLogOutput($output);
+    $this->setLogReplacement('%RUNNER_ID%', '(runner ID "'.$this->runnerId.'")');
+
+    $this->informer->setLogger($this->logger);
 
     /**************************************************************************/
     /* PREPARE EXECUTION                                                      */
@@ -113,10 +106,18 @@ class RunnerCommand extends Command {
    */
   protected function execute(InputInterface $input, OutputInterface $output) {
     /**************************************************************************/
+    /* PREPARE OUTPUT                                                         */
+    /**************************************************************************/
+    $bufferedConsoleOutput = new BufferedConsoleOutput(new BufferedOutput());
+    if (($output instanceof ConsoleOutput) && $input->getOption('console')) {
+      $bufferedConsoleOutput->setConsoleOutput($output);
+    }
+
+    /**************************************************************************/
     /* CHECK REDIS                                                            */
     /**************************************************************************/
     if (!$this->messenger->isAvailable()) {
-      $this->outputAndLog('Redis is not available.', 'critical');
+      $this->outputAndOrLog('Redis is not available %RUNNER_ID%.', 'critical');
       return;
     }
 
@@ -125,7 +126,7 @@ class RunnerCommand extends Command {
     /**************************************************************************/
     if ($input->getArgument('action') === 'kill') {
       $this->messenger->setRunnerKilled($this->runnerId, TRUE);
-      $this->outputAndLog('Sent kill request %RUNNER_ID%.', 'info');
+      $this->outputAndOrLog('Sent kill request %RUNNER_ID%.', 'notice');
       return;
     }
 
@@ -133,8 +134,8 @@ class RunnerCommand extends Command {
     /* RUN SINGLE COMMAND                                                     */
     /**************************************************************************/
     if ($input->getArgument('action') === 'single') {
-      $this->outputAndLog('Running a single job %RUNNER_ID%.', 'info');
-      $this->executeOne();
+      $this->outputAndOrLog('Running a single job %RUNNER_ID%.', 'notice');
+      $this->executeOne($bufferedConsoleOutput);
       return;
     }
 
@@ -178,7 +179,7 @@ class RunnerCommand extends Command {
     /* START RUNNER                                                           */
     /**************************************************************************/
     $this->messenger->setRunnerStatusToStarted($this->runnerId);
-    $this->outputAndLog('Runner started %RUNNER_ID%.', 'info');
+    $this->outputAndOrLog('Runner started %RUNNER_ID%.', 'notice');
 
     // Set the last time this runner checked in, use this to
     // help determine when scripts die
@@ -189,7 +190,7 @@ class RunnerCommand extends Command {
     /**************************************************************************/
     while (time() < $start_time + $time_limit) {
       // Execute queued job.
-      $this->executeOne();
+      $this->executeOne($bufferedConsoleOutput);
 
       // Check if runner has been killed.
       if ($this->hasRunnerBeenKilled()) {
@@ -201,25 +202,27 @@ class RunnerCommand extends Command {
 
       // Enqueue delayed jobs which are now due.
       if ($numOfEnqueuedJobs = $this->messenger->enqueueDelayedJobs()) {
-        $this->outputAndLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs %RUNNER_ID%.', 'notice');
       }
     }
 
     // Setting the runner status to started
     $this->messenger->setRunnerStatusToStopped($this->runnerId);
-    $this->outputAndLog('Planned shutdown %RUNNER_ID%! Waiting for restart...', 'info');
+    $this->outputAndOrLog('Planned shutdown %RUNNER_ID%! Waiting for restart...', 'notice');
   }
 
   /**
    * Pops an item from the beginning of the queue (blocking) and runs the
    * underlying command.
+   *
+   * @param BufferedConsoleOutput $bufferedConsoleOutput
    */
-  private function executeOne() : void {
+  private function executeOne(BufferedConsoleOutput $bufferedConsoleOutput) : void {
     if ($jobId = $this->messenger->popJobId($this->runnerId, $queue, $this->config['runner']['block'])) {
-      $this->output->writeln('');
+      $this->outputAndOrLog('');
 
       if (!$job = $this->messenger->getJob($jobId)) {
-        $this->outputAndLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
         return;
       }
 
@@ -228,13 +231,13 @@ class RunnerCommand extends Command {
       /************************************************************************/
       $this->messenger->setRunnerStatusToRunning($this->runnerId);
 
-      $this->outputAndLog('Found job ID '.$job->getId().' in queue "'.$queue.'" %RUNNER_ID%.', 'debug');
+      $this->outputAndOrLog('Found job ID '.$job->getId().' in queue "'.$queue.'" %RUNNER_ID%.', 'debug');
 
       /************************************************************************/
       /* CHECK IF JOB IS CANCELLED                                            */
       /************************************************************************/
       if ($job->getCancelled()) {
-        $this->outputAndLog('Cancelled job ID '.$job->getId().' discarded (cancelled) %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Cancelled job ID '.$job->getId().' discarded (cancelled) %RUNNER_ID%.', 'info');
         $this->messenger->discardJob($job);
       }
 
@@ -247,113 +250,38 @@ class RunnerCommand extends Command {
         // Save async job if anything fails during execution
         $this->messenger->markJobAsRunning($job, $this->runnerId);
 
-        $executor->execute($job);
+        $executor->execute($job, $bufferedConsoleOutput);
 
         // Delete async job if everything went fine
         $this->messenger->discardJob($job);
       } catch (\Exception $e) {
-        $this->outputAndLog('Job ID '.$job->getId().' failed %RUNNER_ID%. Message: '.$e->getMessage(), 'error');
+        $this->outputAndOrLog('Job ID '.$job->getId().' failed %RUNNER_ID%. Message: '.$e->getMessage(), 'error');
         $this->messenger->markJobAsFailed($job);
       }
 
       /************************************************************************/
       /* SEND INFORMER MAIL                                                   */
       /************************************************************************/
-      $this->informAboutJob($job, $executor->getReturnData());
+      $this->informer->informAboutJob($job, $executor->getReturnData());
 
       /************************************************************************/
       /* OUTPUT RESULT                                                        */
       /************************************************************************/
       if ($executor->getReturnCode() === NULL) {
-        $this->outputAndLog('Job ID '.$job->getId().' invalid %RUNNER_ID%.', 'alert');
+        $this->outputAndOrLog('Job ID '.$job->getId().' invalid %RUNNER_ID%.', 'alert');
       } elseif ($executor->getReturnCode() === 0) {
-        $this->outputAndLog('Job ID '.$job->getId().' successful %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Job ID '.$job->getId().' successful %RUNNER_ID%.', 'info');
       } else {
-        $this->outputAndLog('Job ID '.$job->getId().' erroneous %RUNNER_ID%.', 'error');
+        $this->outputAndOrLog('Job ID '.$job->getId().' erroneous %RUNNER_ID%.', 'error');
       }
 
-      $this->output->writeln('');
+      $this->outputAndOrLog('');
 
       /************************************************************************/
       /* CLEANUP (doctrine_orm, doctrine_dbal, monolog, swift_mailer spool)   */
       /************************************************************************/
       $this->cleaner->cleanUp();
     }
-  }
-
-  /**
-   * Inform about job execution via email.
-   *
-   * @param AbstractJob $job
-   * @param array $returnData
-   *
-   * @return bool
-   */
-  private function informAboutJob(AbstractJob $job, array $returnData) : bool {
-    $email = $this->config['mail']['to'];
-    if ($job->getEmail()) {
-      $email = $job->getEmail();
-    }
-
-    // Check if email should be sent.
-    if ($email && $this->mailer && $this->config['mail']['fromAddress'] && $job->getInform()) {
-      $message = new \Swift_Message();
-      $message->setTo($email);
-      $message->setFrom($this->config['mail']['fromAddress'], $this->config['mail']['fromName']);
-
-      // Render subject.
-      $subject = $this->renderTemplateChain([
-        $job->getTemplateFolder().'subject.text.twig',
-        '@HBMAsyncWorker/subject.text.twig',
-      ], $returnData);
-      $message->setSubject($subject);
-
-      // Render text body.
-      $body = $this->renderTemplateChain([
-        $job->getTemplateFolder().'body.text.twig',
-        '@HBMAsyncWorker/body.text.twig',
-      ], $returnData);
-      $message->setBody($body, 'text/plain');
-
-      // Render html body.
-      $body = $this->renderTemplateChain([
-        $job->getTemplateFolder().'body.html.twig',
-        '@HBMAsyncWorker/body.html.twig',
-      ], $returnData);
-      if ($body) {
-        $message->setBody($body, 'text/html');
-      }
-
-      $this->mailer->send($message);
-
-      $this->outputAndLog('Informing '.$email.' about job ID '.$job->getId().' %RUNNER_ID%.', 'info');
-
-      return FALSE;
-    }
-
-    return FALSE;
-  }
-
-  /**
-   * Render the first existing template.
-   *
-   * @param array $templates
-   * @param array $data
-   * @param string|NULL $default
-   *
-   * @return null|string
-   */
-  private function renderTemplateChain(array $templates, array $data, string $default = NULL) : ?string {
-    foreach ($templates as $template) {
-      try {
-        if ($this->templating->exists($template)) {
-          return $this->templating->render($template, $data);
-        }
-      } catch (\Throwable $e) {
-      }
-    }
-
-    return $default;
   }
 
   /**
@@ -364,7 +292,7 @@ class RunnerCommand extends Command {
   private function hasRunnerAlreadyBeenStarted() : bool {
     if (!\in_array($this->messenger->getRunnerStatus($this->runnerId), [Messenger::STATUS_STOPPED, Messenger::STATUS_TIMEOUT], TRUE)) {
       if ($this->input->getArgument('action') !== 'force') {
-        $this->outputAndLog('Runner is already active %RUNNER_ID%.', 'debug');
+        $this->outputAndOrLog('Runner is already active %RUNNER_ID%.', 'debug');
         return TRUE;
       }
     }
@@ -382,7 +310,7 @@ class RunnerCommand extends Command {
   private function hasRunnerTimedOut(int $time_limit) : bool {
     if ($this->messenger->getRunnerStatus($this->runnerId) === Messenger::STATUS_TIMEOUT) {
       $this->messenger->setRunnerStatusToStopped($this->runnerId);
-      $this->outputAndLog('Runner reset after timeout %RUNNER_ID%.', 'info');
+      $this->outputAndOrLog('Runner reset after timeout %RUNNER_ID%.', 'info');
     }
 
     if ($this->messenger->getRunnerStatus($this->runnerId) !== Messenger::STATUS_STOPPED) {
@@ -390,7 +318,7 @@ class RunnerCommand extends Command {
       if ($start && ($start->getTimestamp() < time() - $this->config['runner']['timeout'] * $time_limit)) {
         if ($this->input->getArgument('action') !== 'force') {
           $this->messenger->setRunnerStatusToTimeout($this->runnerId);
-          $this->outputAndLog('Runner has timed out %RUNNER_ID%.', 'alert');
+          $this->outputAndOrLog('Runner has timed out %RUNNER_ID%.', 'alert');
           return TRUE;
         }
       }
@@ -411,47 +339,12 @@ class RunnerCommand extends Command {
       $this->messenger->setRunnerKilled($this->runnerId, FALSE);
       $this->messenger->setRunnerStatusToStopped($this->runnerId);
 
-      $this->outputAndLog('Kill request detected %RUNNER_ID%! Waiting for restart...', 'notice');
+      $this->outputAndOrLog('Kill request detected %RUNNER_ID%! Waiting for restart...', 'notice');
 
       return TRUE;
     }
 
     return FALSE;
-  }
-
-  /**
-   * Output (and log) messages.
-   *
-   * @param $message
-   * @param $level
-   */
-  private function outputAndLog($message, $level) : void {
-    $searchReplace = [
-      '%RUNNER_ID%' => '(runner id "'.$this->runnerId.'")',
-    ];
-    $message = str_replace(array_keys($searchReplace), array_values($searchReplace), $message);
-
-    if ($this->input->getOption('log')) {
-      $this->logger->log($level, $message);
-    }
-
-    $this->output->writeln('<hbm_async_'.$level.'>'.$message.'</hbm_async_'.$level.'>');
-  }
-
-  /**
-   * Add output styles to log levels.
-   */
-  private function prettifyOutput() : void {
-    $levels = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
-
-    foreach ($levels as $level) {
-      $fg = $this->config['output']['formats'][$level]['fg'] ?? NULL;
-      $bg = $this->config['output']['formats'][$level]['bg'] ?? NULL;
-      $options    = $this->config['output']['formats'][$level]['options'] ?? [];
-
-      $style = new OutputFormatterStyle($fg, $bg, $options);
-      $this->output->getFormatter()->setStyle('hbm_async_'.$level, $style);
-    }
   }
 
   /**
