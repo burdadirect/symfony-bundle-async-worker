@@ -57,7 +57,8 @@ class WorkerCommandTest extends AbstractCommandTestCase {
       ->disableOriginalConstructor()
       ->getMock();
 
-    /** @var EngineInterface $templating */
+    /** @var EngineInterface $templating
+     */
     $templating = $this->getMockBuilder(EngineInterface::class)
       ->disableOriginalConstructor()
       ->getMock();

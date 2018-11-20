@@ -7,7 +7,7 @@ use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\Services\Messenger;
 use LongRunning\Core\Cleaner;
 use Psr\Log\LoggerInterface;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
@@ -15,7 +15,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Templating\EngineInterface;
 
-class RunnerCommand extends ContainerAwareCommand {
+class RunnerCommand extends Command {
 
   /**
    * @var string
@@ -304,21 +304,21 @@ class RunnerCommand extends ContainerAwareCommand {
       // Render subject.
       $subject = $this->renderTemplateChain([
         $job->getTemplateFolder().'subject.text.twig',
-        '@HBMAsync/subject.text.twig',
+        '@HBMAsyncWorker/subject.text.twig',
       ], $returnData);
       $message->setSubject($subject);
 
       // Render text body.
       $body = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.text.twig',
-        '@HBMAsync/body.text.twig',
+        '@HBMAsyncWorker/body.text.twig',
       ], $returnData);
       $message->setBody($body, 'text/plain');
 
       // Render html body.
       $body = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.html.twig',
-        '@HBMAsync/body.html.twig',
+        '@HBMAsyncWorker/body.html.twig',
       ], $returnData);
       if ($body) {
         $message->setBody($body, 'text/html');
