@@ -27,11 +27,32 @@ class WorkerCommandTest extends AbstractCommandTestCase {
   private $messenger;
 
   /**
+   * @var Command
+   */
+  private $dummyCommand;
+
+  /**
    * @var RunnerCommand
    */
   private $runnerCommand;
 
-  private function initServices(array $configs = []) {
+  protected function setUp() {
+    parent::setUp();
+
+    // Dummy command
+    $this->dummyCommand = new Command('hbm:async:dummy');
+    $this->dummyCommand->setCode(function() {
+      return 'This is a dummy command.';
+    });
+  }
+
+
+  /**
+   * Init services.
+   *
+   * @param array $configs
+   */
+  private function initServices(array $configs = []) : void {
     $configuration = new Configuration();
     $processor = new Processor();
 
@@ -40,10 +61,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     /** @var \Redis $redis */
     $redis = new \Redis();
     $redis->connect('127.0.0.1', 6379);
-
-    /** @var Messenger $messenger */
-    $messenger = new Messenger($config, $redis);
-    $messenger->setOptions();
+    $redis->flushAll();
 
     /** @var Logger $logger */
     $logger = new Logger($config);
@@ -61,11 +79,12 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->messenger = new Messenger($config, $redis);
     $this->messenger->setLogger($logger);
 
-    $this->runnerCommand = new RunnerCommand($config, $messenger, $informer, $cleaner);
+    $this->runnerCommand = new RunnerCommand($config, $this->messenger, $informer, $cleaner);
     $this->runnerCommand->setLogger($logger);
 
     $this->application = new Application();
     $this->application->add($this->runnerCommand);
+    $this->application->add($this->dummyCommand);
   }
 
   public function testRunnerKill() : void {
@@ -84,6 +103,59 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->assertContains('Sent kill request (runner ID "main").', $commandString, 'Output should contain "Sent kill request (runner ID "main").".');
   }
 
+  public function testRunnerUpdate() : void {
+    $this->initServices();
+
+    // Dummy command job
+    $job = $this->createDummyCommandJob('normal');
+    $job->setExpires(new \DateTime('+2sec'));
+    $this->messenger->dispatchJob($job);
+
+    $job = $this->createDummyCommandJob('normal');
+    $job->setExpires(new \DateTime('+4sec'));
+    $this->messenger->dispatchJob($job);
+
+    $job = $this->createDummyCommandJob('normal');
+    $job->setExpires(new \DateTime('+6sec'));
+    $this->messenger->dispatchJob($job);
+
+    sleep(1);
+
+    $this->assertSame(3, $this->messenger->countJobsExpiring(), 'There should be 3 expiring jobs.');
+    $this->assertSame(3, $this->messenger->countJobsQueued(), 'There should be 3 waiting jobs.');
+    $this->assertSame(3, $this->messenger->countJobs(), 'There should be 3 jobs.');
+
+    sleep(2);
+
+    // Test command.
+    $commandString = $this->testRunnerCommand('main', 'update');
+    $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
+
+    $this->assertSame(2, $this->messenger->countJobsExpiring(), 'There should be 2 expiring jobs.');
+    $this->assertSame(2, $this->messenger->countJobsQueued(), 'There should be 2 waiting jobs.');
+    $this->assertSame(3, $this->messenger->countJobs(), 'There should be 3 jobs.');
+
+    sleep(2);
+
+    // Test command.
+    $commandString = $this->testRunnerCommand('main', 'update');
+    $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
+
+    $this->assertSame(1, $this->messenger->countJobsExpiring(), 'There should be 1 expiring job.');
+    $this->assertSame(1, $this->messenger->countJobsQueued(), 'There should be 1 waiting job.');
+    $this->assertSame(3, $this->messenger->countJobs(), 'There should be 3 jobs.');
+
+    sleep(2);
+
+    // Test command.
+    $commandString = $this->testRunnerCommand('main', 'update');
+    $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
+
+    $this->assertSame(0, $this->messenger->countJobsExpiring(), 'There should be 0 expiring jobs.');
+    $this->assertSame(0, $this->messenger->countJobsQueued(), 'There should be 0 waiting job.');
+    $this->assertSame(3, $this->messenger->countJobs(), 'There should be 3 jobs.');
+  }
+
   public function testRunnerSingle() : void {
     $specialConfig = [
       'runner' => ['ids' => ['john']],
@@ -96,44 +168,52 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $runner = $specialConfig['runner']['ids'][0];
     $log = '(runner ID "'.$runner.'")';
 
-    /**************************************************************************/
-    /* DUMMY COMMAND                                                          */
-    /**************************************************************************/
-
-    $dummyCommand = new Command('hbm:async:dummy');
-    $dummyCommand->setCode(function() {
-      return 'This is a dummy command.';
-    });
-
-    /**************************************************************************/
-    /* ASYNC JOB                                                              */
-    /**************************************************************************/
-
-    $job = new AsyncCommand($queue);
+    // Dummy command job
+    $job = $this->createDummyCommandJob($queue);
     $job->setRunnerDesired($runner);
-    $job->setCommand($dummyCommand->getName());
-
     $this->messenger->dispatchJob($job);
 
-    /**************************************************************************/
-    /* RUNNER                                                                 */
-    /**************************************************************************/
-
-    $this->application->add($dummyCommand);
-
-    $commandTester = new CommandTester($this->runnerCommand);
-    $commandTester->execute([
-      'command' => $this->runnerCommand->getName(),
-      'runner'  => $job->getRunnerDesired(),
-      'action'  => 'single',
-    ]);
-
-    $commandDisplay = $commandTester->getDisplay();
-    $commandString = $this->removeAnsiEscapeSequences($commandDisplay);
+    // Test command
+    $commandString = $this->testRunnerCommand($job->getRunnerDesired(), 'single');
 
     $this->assertContains('Running a single job '.$log.'.', $commandString, 'Output should contain "Running a single job...".');
     $this->assertContains('Found job ID '.$job->getId().' in queue "'.$queue.'.'.$runner.'" '.$log.'.', $commandString, 'Output should contain "Found job ... in queue ... .".');
     $this->assertContains('Job ID '.$job->getId().' successful '.$log.'.', $commandString, 'Output should contain "Job ... successful.".');
+  }
+
+  /**
+   * Test RunnerCommand.
+   *
+   * @param string $runner
+   * @param string $action
+   *
+   * @return string
+   */
+  private function testRunnerCommand(string $runner, string $action) : string {
+    $commandTester = new CommandTester($this->runnerCommand);
+    $commandTester->execute([
+      'command' => $this->runnerCommand->getName(),
+      'runner'  => $runner,
+      'action'  => $action,
+    ]);
+
+    $commandDisplay = $commandTester->getDisplay();
+
+    return $this->removeAnsiEscapeSequences($commandDisplay);
+  }
+
+  /**
+   * Creates a dummy command async job.
+   *
+   * @param $queue
+   *
+   * @return AsyncCommand
+   */
+  private function createDummyCommandJob($queue) : AsyncCommand {
+    $job = new AsyncCommand($queue);
+    $job->setCommand($this->dummyCommand->getName());
+
+    return $job;
   }
 
 }

@@ -13,7 +13,8 @@ class Messenger {
   /****************************************************************************/
   /* SET                                                                      */
   /****************************************************************************/
-  protected const SET_JOBS_DELAYED = 'jobs.delayed';
+  protected const SET_JOBS_DELAYED  = 'jobs.delayed';
+  protected const SET_JOBS_EXPIRING = 'jobs.expiring';
 
   /****************************************************************************/
   /* HASH                                                                     */
@@ -25,6 +26,7 @@ class Messenger {
   protected const HASH_JOBS         = 'jobs';
 
   protected const HASH_JOBS_FAILED  = 'jobs.failed';
+  protected const HASH_JOBS_EXPIRED = 'jobs.expired';
   protected const HASH_JOBS_RUNNING = 'jobs.running';
 
   /****************************************************************************/
@@ -50,17 +52,15 @@ class Messenger {
    * Messenger constructor.
    *
    * @param array $config
-   * @param \Redis|NULL $redis
+   * @param \Redis $redis
+   * @param Logger|NULL $logger
    */
-  public function __construct(array $config, \Redis $redis) {
+  public function __construct(array $config, \Redis $redis, Logger $logger = NULL) {
     $this->config = $config;
     $this->redis = $redis;
-  }
 
-  /**
-   * Set redis options.
-   */
-  public function setOptions() : void {
+    $this->setLogger($logger);
+
     try {
       $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
     } catch (\Exception $re) {
@@ -123,6 +123,10 @@ class Messenger {
     }
 
     $this->redis->hSet(self::HASH_JOBS, $job->getId(), $job);
+
+    if ($job->getExpires()) {
+      $this->redis->zAdd(self::SET_JOBS_EXPIRING, $job->getExpires()->getTimestamp(), $job->getId());
+    }
 
     if ($job->getDelayed()) {
       return $this->delayJob($job, $job->getDelayed()->getTimestamp());
@@ -235,6 +239,21 @@ class Messenger {
   }
 
   /**
+   * Enqueue due jobs.
+   *
+   * @return int
+   */
+  public function expireJobs() : int {
+    $expiredJobs = $this->getExpiredJobs();
+
+    foreach ($expiredJobs as $expiredJob) {
+      $this->markJobAsExpired($expiredJob);
+    }
+
+    return \count($expiredJobs);
+  }
+
+  /**
    * Get job.
    *
    * @param string $jobId
@@ -252,6 +271,15 @@ class Messenger {
    */
   public function getJobs() : array {
     return $this->redis->hGetAll(self::HASH_JOBS);
+  }
+
+  /**
+   * Count all jobs.
+   *
+   * @return int
+   */
+  public function countJobs() : int {
+    return $this->redis->hLen(self::HASH_JOBS);
   }
 
   /**
@@ -282,12 +310,30 @@ class Messenger {
   }
 
   /**
-   * Count all running jobs.
+   * Count all failed jobs.
    *
    * @return int
    */
   public function countJobsFailed() : int {
     return $this->redis->hLen(self::HASH_JOBS_FAILED);
+  }
+
+  /**
+   * Get all expired jobs.
+   *
+   * @return array|AbstractJob[]
+   */
+  public function getJobsExpired() : array {
+    return $this->getJobsById(array_keys($this->redis->hGetAll(self::HASH_JOBS_EXPIRED)));
+  }
+
+  /**
+   * Count all expired jobs.
+   *
+   * @return int
+   */
+  public function countJobsExpired() : int {
+    return $this->redis->hLen(self::HASH_JOBS_EXPIRED);
   }
 
   /**
@@ -510,6 +556,50 @@ class Messenger {
   }
 
   /****************************************************************************/
+  /* JOBS EXPIRING                                                            */
+  /****************************************************************************/
+
+  /**
+   * Get expired jobs (and optionally remove them in a transaction).
+   *
+   * @param bool $remove
+   *
+   * @return array|AbstractJob[]
+   */
+  public function getExpiredJobs($remove = TRUE) : array {
+    /** @var \Redis $redis */
+    $redis = $this->redis->multi();
+
+    $ts = time();
+    $redis->zRangeByScore(self::SET_JOBS_EXPIRING, 0, $ts);
+    if ($remove) {
+      $redis->zRemRangeByScore(self::SET_JOBS_EXPIRING, 0, $ts);
+    }
+
+    $res = $redis->exec();
+
+    return $this->getJobsById($res[0]);
+  }
+
+  /**
+   * Get all expiring jobs.
+   *
+   * @return array|AbstractJob[]
+   */
+  public function getJobsExpiring() : array {
+    return $this->getJobsById($this->redis->zRange(self::SET_JOBS_EXPIRING, 0, -1));
+  }
+
+  /**
+   * Count all expiring jobs.
+   *
+   * @return int
+   */
+  public function countJobsExpiring() : int {
+    return $this->redis->zCount(self::SET_JOBS_EXPIRING, 0, '+inf');
+  }
+
+  /****************************************************************************/
   /* JOBS DELAYED                                                             */
   /****************************************************************************/
 
@@ -563,9 +653,11 @@ class Messenger {
   protected function resetJob(AbstractJob $job) : void {
     $this->redis->hDel(self::HASH_JOBS_RUNNING, $job->getId());
     $this->redis->hDel(self::HASH_JOBS_FAILED, $job->getId());
+    $this->redis->hDel(self::HASH_JOBS_EXPIRED, $job->getId());
 
     $this->redis->lRem($job->getQueue(), $job->getId(), 0);
     $this->redis->zRem(self::SET_JOBS_DELAYED, $job);
+    $this->redis->zRem(self::SET_JOBS_EXPIRING, $job);
   }
 
   /**
@@ -611,6 +703,17 @@ class Messenger {
 
     $this->resetJob($job);
     $this->redis->hSet(self::HASH_JOBS_FAILED, $job->getId(), TRUE);
+  }
+
+  /**
+   * @param AbstractJob $job
+   */
+  public function markJobAsExpired(AbstractJob $job) : void {
+    $job->setState(Job::STATUS_EXPIRED);
+    $this->updateJob($job);
+
+    $this->resetJob($job);
+    $this->redis->hSet(self::HASH_JOBS_EXPIRED, $job->getId(), TRUE);
   }
 
   /**

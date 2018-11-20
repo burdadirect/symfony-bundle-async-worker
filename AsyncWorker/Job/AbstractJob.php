@@ -50,6 +50,11 @@ abstract class AbstractJob implements Job {
   private $delayed;
 
   /**
+   * @var \DateTime
+   */
+  private $expires;
+
+  /**
    * @var string
    */
   private $state;
@@ -259,6 +264,28 @@ abstract class AbstractJob implements Job {
    */
   public function getDelayed() : ?\DateTime {
     return $this->delayed;
+  }
+
+  /**
+   * Set expires.
+   *
+   * @param \DateTime|NULL $expires
+   *
+   * @return self
+   */
+  public function setExpires(\DateTime $expires = NULL) : self {
+    $this->expires = $expires;
+
+    return $this;
+  }
+
+  /**
+   * Get expires.
+   *
+   * @return \DateTime|NULL
+   */
+  public function getExpires() : ?\DateTime {
+    return $this->expires;
   }
 
   /**

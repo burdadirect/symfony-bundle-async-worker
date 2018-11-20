@@ -70,7 +70,7 @@ class RunnerCommand extends Command {
     $this
       ->setName(self::NAME)
       ->addArgument('runner', InputArgument::REQUIRED, 'The ID of the runner. Could be any integer/string. Just to identify this runner.')
-      ->addArgument('action', InputArgument::OPTIONAL, 'The action to perform. Possible values are: start, kill, force. Default: "start"')
+      ->addArgument('action', InputArgument::OPTIONAL, 'The action to perform. Possible values are: start, kill, force, update. Default: "start"')
       ->addOption('log', NULL, InputOption::VALUE_NONE, 'Log to channel instead of writing to console output.')
       ->addOption('console', NULL, InputOption::VALUE_NONE, 'Output command output to runner console.')
       ->setDescription('Run the runner.');
@@ -140,6 +140,15 @@ class RunnerCommand extends Command {
     }
 
     /**************************************************************************/
+    /* UPDATE QUEUES                                                          */
+    /**************************************************************************/
+    if ($input->getArgument('action') === 'update') {
+      $this->outputAndOrLog('Updating queues %RUNNER_ID%.', 'notice');
+      $this->updateQueues();
+      return;
+    }
+
+    /**************************************************************************/
     /* START TIME                                                             */
     /**************************************************************************/
     /*
@@ -200,10 +209,8 @@ class RunnerCommand extends Command {
       // Setting runner status to idle
       $this->messenger->setRunnerStatusToIdle($this->runnerId);
 
-      // Enqueue delayed jobs which are now due.
-      if ($numOfEnqueuedJobs = $this->messenger->enqueueDelayedJobs()) {
-        $this->outputAndOrLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs %RUNNER_ID%.', 'notice');
-      }
+      // Enqueue delayed jobs, discard expired jobs
+      $this->updateQueues();
     }
 
     // Setting the runner status to started
@@ -221,6 +228,9 @@ class RunnerCommand extends Command {
     if ($jobId = $this->messenger->popJobId($this->runnerId, $queue, $this->config['runner']['block'])) {
       $this->outputAndOrLog('');
 
+      /************************************************************************/
+      /* CHECK IF JOB IS DISCARDED                                            */
+      /************************************************************************/
       if (!$job = $this->messenger->getJob($jobId)) {
         $this->outputAndOrLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
         return;
@@ -358,6 +368,21 @@ class RunnerCommand extends Command {
     $executorClass = $job->getExecutorClass();
 
     return new $executorClass($this->getApplication(), $this->config);
+  }
+
+  /**
+   * Enqueue delayed jobs. Discard expired jobs.
+   */
+  private function updateQueues() : void {
+    // Enqueue delayed jobs which are now due.
+    if ($numOfEnqueuedJobs = $this->messenger->enqueueDelayedJobs()) {
+      $this->outputAndOrLog('Enqueuing '.$numOfEnqueuedJobs.' delayed jobs %RUNNER_ID%.', 'notice');
+    }
+
+    // Remove waiting jobs which are expired now.
+    if ($numOfExpiredJobs = $this->messenger->expireJobs()) {
+      $this->outputAndOrLog('Expired '.$numOfExpiredJobs.' jobs %RUNNER_ID%.', 'notice');
+    }
   }
 
 }

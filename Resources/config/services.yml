@@ -7,10 +7,7 @@ services:
 
     hbm.async_worker.messenger:
         class: HBM\AsyncWorkerBundle\Services\Messenger
-        arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis']
-        calls:
-            - [ setLogger, [ '@hbm.async_worker.logger' ] ]
-            - [ setOptions ]
+        arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis', '@hbm.async_worker.logger']
 
     hbm.async_worker.informer:
         class: HBM\AsyncWorkerBundle\Services\Informer
