@@ -3,7 +3,7 @@
 namespace Tests\HBM\AsyncWorkerBundle\Command;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\Command as AsyncCommand;
-use HBM\AsyncWorkerBundle\Command\RunnerCommand;
+use HBM\AsyncWorkerBundle\Command\ListenCommand;
 use HBM\AsyncWorkerBundle\DependencyInjection\Configuration;
 use HBM\AsyncWorkerBundle\Services\Informer;
 use HBM\AsyncWorkerBundle\Services\Logger;
@@ -14,7 +14,7 @@ use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class WorkerCommandTest extends AbstractCommandTestCase {
+class ListenCommandTest extends AbstractCommandTestCase {
 
   /**
    * @var Application
@@ -32,7 +32,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
   private $dummyCommand;
 
   /**
-   * @var RunnerCommand
+   * @var ListenCommand
    */
   private $runnerCommand;
 
@@ -61,7 +61,6 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     /** @var \Redis $redis */
     $redis = new \Redis();
     $redis->connect('127.0.0.1', 6379);
-    $redis->flushAll();
 
     /** @var Logger $logger */
     $logger = new Logger($config);
@@ -78,8 +77,9 @@ class WorkerCommandTest extends AbstractCommandTestCase {
 
     $this->messenger = new Messenger($config, $redis);
     $this->messenger->setLogger($logger);
+    $this->messenger->purge();
 
-    $this->runnerCommand = new RunnerCommand($config, $this->messenger, $informer, $cleaner);
+    $this->runnerCommand = new ListenCommand($config, $this->messenger, $informer, $cleaner);
     $this->runnerCommand->setLogger($logger);
 
     $this->application = new Application();
@@ -87,7 +87,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->application->add($this->dummyCommand);
   }
 
-  public function testRunnerKill() : void {
+  public function testKill() : void {
     $this->initServices();
 
     $commandTester = new CommandTester($this->runnerCommand);
@@ -103,7 +103,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->assertContains('Sent kill request (runner ID "main").', $commandString, 'Output should contain "Sent kill request (runner ID "main").".');
   }
 
-  public function testRunnerUpdate() : void {
+  public function testUpdate() : void {
     $this->initServices();
 
     // Dummy command job
@@ -128,7 +128,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     sleep(2);
 
     // Test command.
-    $commandString = $this->testRunnerCommand('main', 'update');
+    $commandString = $this->executeListenCommandTest('main', 'update');
     $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
 
     $this->assertSame(2, $this->messenger->countJobsExpiring(), 'There should be 2 expiring jobs.');
@@ -138,7 +138,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     sleep(2);
 
     // Test command.
-    $commandString = $this->testRunnerCommand('main', 'update');
+    $commandString = $this->executeListenCommandTest('main', 'update');
     $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
 
     $this->assertSame(1, $this->messenger->countJobsExpiring(), 'There should be 1 expiring job.');
@@ -148,7 +148,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     sleep(2);
 
     // Test command.
-    $commandString = $this->testRunnerCommand('main', 'update');
+    $commandString = $this->executeListenCommandTest('main', 'update');
     $this->assertContains('Updating queues (runner ID "main").', $commandString, 'Output should contain "Updating queues (runner ID "main").".');
 
     $this->assertSame(0, $this->messenger->countJobsExpiring(), 'There should be 0 expiring jobs.');
@@ -156,7 +156,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->assertSame(3, $this->messenger->countJobs(), 'There should be 3 jobs.');
   }
 
-  public function testRunnerSingle() : void {
+  public function testSingle() : void {
     $specialConfig = [
       'runner' => ['ids' => ['john']],
       'priorities' => ['important']
@@ -174,7 +174,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
     $this->messenger->dispatchJob($job);
 
     // Test command
-    $commandString = $this->testRunnerCommand($job->getRunnerDesired(), 'single');
+    $commandString = $this->executeListenCommandTest($job->getRunnerDesired(), 'single');
 
     $this->assertContains('Running a single job '.$log.'.', $commandString, 'Output should contain "Running a single job...".');
     $this->assertContains('Found job ID '.$job->getId().' in queue "'.$queue.'.'.$runner.'" '.$log.'.', $commandString, 'Output should contain "Found job ... in queue ... .".');
@@ -189,7 +189,7 @@ class WorkerCommandTest extends AbstractCommandTestCase {
    *
    * @return string
    */
-  private function testRunnerCommand(string $runner, string $action) : string {
+  private function executeListenCommandTest(string $runner, string $action) : string {
     $commandTester = new CommandTester($this->runnerCommand);
     $commandTester->execute([
       'command' => $this->runnerCommand->getName(),

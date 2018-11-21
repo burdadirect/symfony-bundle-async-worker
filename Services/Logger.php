@@ -93,7 +93,7 @@ class Logger {
   public function handle(string $message, string $level = NULL) : void {
     $message = str_replace(array_keys($this->replacements), array_values($this->replacements), $message);
 
-    if ($this->channel && $level) {
+    if ($this->logger && $this->channel && $level) {
       $this->logger->log($level, $message);
     }
 

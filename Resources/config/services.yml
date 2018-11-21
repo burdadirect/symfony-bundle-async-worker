@@ -15,8 +15,8 @@ services:
         calls:
             - [ setLogger, [ '@hbm.async_worker.logger' ] ]
 
-    hbm.async_worker.runner:
-        class: HBM\AsyncWorkerBundle\Command\RunnerCommand
+    hbm.async_worker.command.listen:
+        class: HBM\AsyncWorkerBundle\Command\ListenCommand
         arguments: ['%hbm.async_worker%', '@hbm.async_worker.messenger', '@hbm.async_worker.informer', '@long_running.delegating_cleaner']
         calls:
             - [ setLogger, [ '@hbm.async_worker.logger' ] ]

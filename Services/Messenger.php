@@ -86,6 +86,14 @@ class Messenger {
   }
 
   /**
+   * Purges all entries from all lists.
+   */
+  public function purge() : void {
+    $this->outputAndOrLog('Redis has been purged.', 'notice');
+    $this->redis->flushAll();
+  }
+
+  /**
    * Pops a job id from a list and returns the corresponding job.
    *
    * @param string $runnerId

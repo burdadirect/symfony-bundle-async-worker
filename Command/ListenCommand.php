@@ -17,14 +17,14 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
-class RunnerCommand extends Command {
+class ListenCommand extends Command {
 
   use LoggerTrait;
 
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:run';
+  public const NAME = 'hbm:async_worker:listen';
 
   /**
    * @var array
@@ -70,10 +70,10 @@ class RunnerCommand extends Command {
     $this
       ->setName(self::NAME)
       ->addArgument('runner', InputArgument::REQUIRED, 'The ID of the runner. Could be any integer/string. Just to identify this runner.')
-      ->addArgument('action', InputArgument::OPTIONAL, 'The action to perform. Possible values are: start, kill, force, update. Default: "start"')
+      ->addArgument('action', InputArgument::OPTIONAL, 'The action to perform. Possible values are: start, force, update, kill. Default: "start"')
       ->addOption('log', NULL, InputOption::VALUE_NONE, 'Log to channel instead of writing to console output.')
       ->addOption('console', NULL, InputOption::VALUE_NONE, 'Output command output to runner console.')
-      ->setDescription('Run the runner.');
+      ->setDescription('Make the runner listening.');
   }
 
   protected function initialize(InputInterface $input, OutputInterface $output) {
