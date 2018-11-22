@@ -3,10 +3,10 @@
 namespace HBM\AsyncWorkerBundle\Output;
 
 use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Console\Output\Output;
 
-class BufferedConsoleOutput extends Output {
+class BufferedStreamOutput extends Output {
 
   /**
    * @var BufferedOutput
@@ -14,21 +14,21 @@ class BufferedConsoleOutput extends Output {
   private $bufferedOutput;
 
   /**
-   * @var ConsoleOutput
+   * @var StreamOutput
    */
-  private $consoleOutput;
+  private $streamOutput;
 
   /**
-   * BufferedConsoleOutput constructor.
+   * BufferedStreamOutput constructor.
    *
    * @param BufferedOutput $bufferedOutput
-   * @param ConsoleOutput|NULL $consoleOutput
+   * @param StreamOutput|NULL $streamOutput
    */
-  public function __construct(BufferedOutput $bufferedOutput, ConsoleOutput $consoleOutput = NULL) {
+  public function __construct(BufferedOutput $bufferedOutput, StreamOutput $streamOutput = NULL) {
     parent::__construct(self::VERBOSITY_NORMAL, FALSE, NULL);
 
     $this->bufferedOutput = $bufferedOutput;
-    $this->consoleOutput = $consoleOutput;
+    $this->streamOutput = $streamOutput;
   }
 
   /**
@@ -54,14 +54,14 @@ class BufferedConsoleOutput extends Output {
   }
 
   /**
-   * Set consoleOutput.
+   * Set streamOutput.
    *
-   * @param ConsoleOutput|NULL $consoleOutput
+   * @param StreamOutput|NULL $streamOutput
    *
    * @return self
    */
-  public function setConsoleOutput(ConsoleOutput $consoleOutput = NULL) : self {
-    $this->consoleOutput = $consoleOutput;
+  public function setStreamOutput(StreamOutput $streamOutput = NULL) : self {
+    $this->streamOutput = $streamOutput;
 
     return $this;
   }
@@ -69,10 +69,10 @@ class BufferedConsoleOutput extends Output {
   /**
    * Get consoleOutput.
    *
-   * @return ConsoleOutput|null
+   * @return StreamOutput|null
    */
-  public function getConsoleOutput() : ?ConsoleOutput {
-    return $this->consoleOutput;
+  public function getStreamOutput() : ?StreamOutput {
+    return $this->streamOutput;
   }
 
   /**
@@ -83,8 +83,8 @@ class BufferedConsoleOutput extends Output {
     if ($this->bufferedOutput) {
       $this->bufferedOutput->write($message, $newline);
     }
-    if ($this->consoleOutput) {
-      $this->consoleOutput->write($message, $newline);
+    if ($this->streamOutput) {
+      $this->streamOutput->write($message, $newline);
     }
   }
 

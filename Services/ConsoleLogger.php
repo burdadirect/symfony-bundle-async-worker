@@ -6,7 +6,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class Logger {
+class ConsoleLogger {
 
   /**
    * @var array
@@ -19,14 +19,19 @@ class Logger {
   private $logger;
 
   /**
-   * @var bool
-   */
-  private $channel = TRUE;
-
-  /**
    * @var OutputInterface
    */
   private $output;
+
+  /**
+   * @var bool
+   */
+  private $loggerActive;
+
+  /**
+   * @var bool
+   */
+  private $outputActive;
 
   /**
    * @var array
@@ -41,14 +46,21 @@ class Logger {
    */
   public function __construct(array $config, LoggerInterface $logger = NULL) {
     $this->config = $config;
+    $this->setLogger($logger);
+  }
+
+  /**
+   * @param LoggerInterface $logger
+   */
+  public function setLogger(LoggerInterface $logger = NULL) : void {
     $this->logger = $logger;
   }
 
   /**
-   * @param bool $channel
+   * @param bool $flag
    */
-  public function setChannel(bool $channel) : void {
-    $this->channel = $channel;
+  public function setLoggerActive(bool $flag) : void {
+    $this->loggerActive = $flag;
   }
 
   /**
@@ -67,6 +79,13 @@ class Logger {
       $style = new OutputFormatterStyle($fg, $bg, $options);
       $this->output->getFormatter()->setStyle('hbm_async_worker_'.$level, $style);
     }
+  }
+
+  /**
+   * @param bool $flag
+   */
+  public function setOutputActive(bool $flag) : void {
+    $this->outputActive = $flag;
   }
 
   /**
@@ -90,14 +109,14 @@ class Logger {
    * @param $message
    * @param $level
    */
-  public function handle(string $message, string $level = NULL) : void {
+  public function outputAndOrLog(string $message, string $level = NULL) : void {
     $message = str_replace(array_keys($this->replacements), array_values($this->replacements), $message);
 
-    if ($this->logger && $this->channel && $level) {
-      $this->logger->log($level, $message);
+    if ($this->loggerActive && $this->logger) {
+      $this->logger->log($level ?: 'debug', $message);
     }
 
-    if ($this->output) {
+    if ($this->outputActive && $this->output) {
       if ($level) {
         $this->output->writeln('<hbm_async_worker_'.$level.'>'.$message.'</hbm_async_worker_'.$level.'>');
       } else {

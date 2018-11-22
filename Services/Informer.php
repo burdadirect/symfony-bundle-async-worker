@@ -3,13 +3,13 @@
 namespace HBM\AsyncWorkerBundle\Services;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
-use HBM\AsyncWorkerBundle\Traits\LoggerTrait;
+use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Templating\EngineInterface;
 
 class Informer {
 
-  use LoggerTrait;
+  use ConsoleLoggerTrait;
 
   /**
    * @var array
@@ -37,13 +37,15 @@ class Informer {
    * Informer constructor.
    *
    * @param array $config
-   * @param \Swift_Mailer|NULL $mailer
-   * @param EngineInterface|NULL $templating
+   * @param \Swift_Mailer $mailer
+   * @param EngineInterface $templating
+   * @param ConsoleLogger $consoleLogger
    */
-  public function __construct(array $config, \Swift_Mailer $mailer = NULL, EngineInterface $templating = NULL) {
+  public function __construct(array $config, \Swift_Mailer $mailer, EngineInterface $templating, ConsoleLogger $consoleLogger) {
     $this->config = $config;
     $this->mailer = $mailer;
     $this->templating = $templating;
+    $this->consoleLogger = $consoleLogger;
   }
 
   /**

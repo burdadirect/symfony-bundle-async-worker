@@ -4,11 +4,12 @@ namespace HBM\AsyncWorkerBundle\Services;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces\Job;
-use HBM\AsyncWorkerBundle\Traits\LoggerTrait;
+use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
+use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;
 
 class Messenger {
 
-  use LoggerTrait;
+  use ConsoleLoggerTrait;
 
   /****************************************************************************/
   /* SET                                                                      */
@@ -19,24 +20,12 @@ class Messenger {
   /****************************************************************************/
   /* HASH                                                                     */
   /****************************************************************************/
-  protected const HASH_RUNNER_KILLED = 'runner.killed';
-  protected const HASH_RUNNER_START  = 'runner.start';
-  protected const HASH_RUNNER_STATUS = 'runner.status';
-
-  protected const HASH_JOBS         = 'jobs';
+  protected const HASH_RUNNER = 'runner';
+  protected const HASH_JOBS   = 'jobs';
 
   protected const HASH_JOBS_FAILED  = 'jobs.failed';
   protected const HASH_JOBS_EXPIRED = 'jobs.expired';
   protected const HASH_JOBS_RUNNING = 'jobs.running';
-
-  /****************************************************************************/
-  /* STATUS                                                                   */
-  /****************************************************************************/
-  public const STATE_TIMEOUT  = 'timeout';
-  public const STATE_STOPPED  = 'stopped';
-  public const STATE_STARTED  = 'started';
-  public const STATE_IDLE     = 'idle';
-  public const STATE_RUNNING  = 'running';
 
   /**
    * @var array
@@ -53,13 +42,12 @@ class Messenger {
    *
    * @param array $config
    * @param \Redis $redis
-   * @param Logger|NULL $logger
+   * @param ConsoleLogger|NULL $consoleLogger
    */
-  public function __construct(array $config, \Redis $redis, Logger $logger = NULL) {
+  public function __construct(array $config, \Redis $redis, ConsoleLogger $consoleLogger = NULL) {
     $this->config = $config;
     $this->redis = $redis;
-
-    $this->setLogger($logger);
+    $this->consoleLogger = $consoleLogger;
 
     try {
       $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
@@ -89,7 +77,6 @@ class Messenger {
    * Purges all entries from all lists.
    */
   public function purge() : void {
-    $this->outputAndOrLog('Redis has been purged.', 'notice');
     $this->redis->flushAll();
   }
 
@@ -127,6 +114,7 @@ class Messenger {
    */
   public function dispatchJob(AbstractJob $job) : bool {
     if (!\in_array($job->getPriority(), $this->getPriorities(), TRUE)) {
+      $this->outputAndOrLog('Try to dispatch job with an invalid/missing priority.', 'warning');
       throw new \InvalidArgumentException('Priority is invalid. Use one of the following: '.json_encode($this->getPriorities()));
     }
 
@@ -170,7 +158,7 @@ class Messenger {
     // Make sure queued job is not longer in delayed set.
     $this->redis->zRem(self::SET_JOBS_DELAYED, $job->getId());
 
-    return (bool) $this->redis->rPush($job->getQueue(), $job->getId());
+    return (bool) $this->redis->rPush($this->getQueue($job), $job->getId());
   }
 
   /****************************************************************************/
@@ -265,6 +253,24 @@ class Messenger {
   }
 
   /****************************************************************************/
+
+  /**
+   * Enqueue delayed jobs. Discard expired jobs.
+   *
+   * @return array
+   */
+  public function updateQueues() : array {
+    // Enqueue delayed jobs which are now due.
+    $numOfEnqueuedJobs = $this->enqueueDelayedJobs();
+
+    // Remove waiting jobs which are expired now.
+    $numOfExpiredJobs = $this->expireJobs();
+
+    return [
+      'expired' => $numOfExpiredJobs,
+      'delayed' => $numOfEnqueuedJobs,
+    ];
+  }
 
   /**
    * Enqueue due jobs.
@@ -402,7 +408,7 @@ class Messenger {
     $this->redis->hDel(self::HASH_JOBS_FAILED, $job->getId());
     $this->redis->hDel(self::HASH_JOBS_EXPIRED, $job->getId());
 
-    $this->redis->lRem($job->getQueue(), $job->getId(), 0);
+    $this->redis->lRem($this->getQueue($job), $job->getId(), 0);
     $this->redis->zRem(self::SET_JOBS_DELAYED, $job);
     $this->redis->zRem(self::SET_JOBS_EXPIRING, $job);
   }
@@ -434,7 +440,7 @@ class Messenger {
   }
 
   /****************************************************************************/
-  /* QUEUES                                                                   */
+  /* QUEUES AND RUNNERS                                                       */
   /****************************************************************************/
 
   /**
@@ -443,7 +449,7 @@ class Messenger {
    * @return array
    */
   public function getPriorities() : array {
-    return $this->config['priorities'];
+    return $this->config['queue']['priorities'];
   }
 
   /**
@@ -465,108 +471,39 @@ class Messenger {
   public function getQueuesForRunner(string $runnerId) : array {
     // Do runner specific jobs first.
     $runnerQueues = [];
-    foreach ($this->config['priorities'] as $queue) {
-      $runnerQueues[] = $queue.'.'.$runnerId;
+    foreach ($this->getPriorities() as $priority) {
+      $runnerQueues[] = $this->buildQueueName($priority, $runnerId);
     }
-    foreach ($this->config['priorities'] as $queue) {
-      $runnerQueues[] = $queue;
+    foreach ($this->getPriorities() as $priority) {
+      $runnerQueues[] = $this->buildQueueName($priority);
     }
 
     return $runnerQueues;
   }
 
-  /****************************************************************************/
-  /* RUNNER STATUS                                                            */
-  /****************************************************************************/
-
   /**
-   * @param string $runnerId
-   * @param string $status
+   * Build queue name for job.
    *
-   * @return bool|int
-   */
-  protected function setRunnerStatus(string $runnerId, string $status) {
-    return $this->redis->hSet(self::HASH_RUNNER_STATUS, $runnerId, $status);
-  }
-
-  public function setRunnerStatusToRunning(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATE_RUNNING);
-  }
-
-  public function setRunnerStatusToIdle(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATE_IDLE);
-  }
-
-  public function setRunnerStatusToTimeout(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATE_TIMEOUT);
-  }
-
-  public function setRunnerStatusToStopped(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATE_STOPPED);
-  }
-
-  public function setRunnerStatusToStarted(string $runnerId) {
-    return $this->setRunnerStatus($runnerId, self::STATE_STARTED);
-  }
-
-  /**
-   * @param string $runnerId
+   * @param AbstractJob $job
    *
    * @return string
    */
-  public function getRunnerStatus(string $runnerId) : string {
-    return $this->redis->hGet(self::HASH_RUNNER_STATUS, $runnerId);
+  public function getQueue(AbstractJob $job) : string {
+    return $this->buildQueueName($job->getPriority(), $job->getRunnerDesired());
   }
 
-  /****************************************************************************/
-  /* RUNNER START                                                             */
-  /****************************************************************************/
-
   /**
-   * @param string $runnerId
-   * @param int $start
+   * @param string $priority
+   * @param string|NULL $runnerId
    *
-   * @return bool|int
+   * @return string
    */
-  public function setRunnerStart(string $runnerId, int $start) {
-    return $this->redis->hSet(self::HASH_RUNNER_START, $runnerId, $start);
-  }
-
-  /**
-   * @param $runnerId
-   *
-   * @return \DateTime|null
-   */
-  public function getRunnerStart(string $runnerId) : ?\DateTime {
-    $start = $this->redis->hGet(self::HASH_RUNNER_START, $runnerId);
-
-    return $start ? new \DateTime('@'.$start) : NULL;
-  }
-
-  /****************************************************************************/
-  /* RUNNER KILLED                                                            */
-  /****************************************************************************/
-
-  /**
-   * @param string $runnerId
-   * @param bool $flag
-   */
-  public function setRunnerKilled(string $runnerId, bool $flag) : void {
-    if ($flag === TRUE) {
-      $this->redis->hSet(self::HASH_RUNNER_KILLED, $runnerId, 'yes');
+  private function buildQueueName(string $priority, string $runnerId = NULL) : string {
+    $queueName = $this->config['queue']['prefix'].$priority;
+    if ($runnerId) {
+      $queueName .= '.'.$runnerId;
     }
-    if ($flag === FALSE) {
-      $this->redis->hDel(self::HASH_RUNNER_KILLED, $runnerId);
-    }
-  }
-
-  /**
-   * @param string $runnerId
-   *
-   * @return bool
-   */
-  public function isRunnerKilled(string $runnerId) : bool {
-    return $this->redis->hGet(self::HASH_RUNNER_KILLED, $runnerId) === 'yes';
+    return $queueName;
   }
 
   /****************************************************************************/
@@ -613,9 +550,9 @@ class Messenger {
 
     $count = 0;
     foreach ($priorities as $priority) {
-      $count += $this->redis->lLen($priority);
+      $count += $this->redis->lLen($this->buildQueueName($priority));
       foreach ($runnerIds as $runnerId) {
-        $count += $this->redis->lLen($priority.'.'.$runnerId);
+        $count += $this->redis->lLen($this->buildQueueName($priority, $runnerId));
       }
     }
     return $count;
@@ -767,6 +704,60 @@ class Messenger {
 
     $this->resetJob($job);
     $this->redis->hSet(self::HASH_JOBS_EXPIRED, $job->getId(), TRUE);
+  }
+
+  /****************************************************************************/
+  /* RUNNER                                                                   */
+  /****************************************************************************/
+
+  /**
+   * Update runner.
+   *
+   * @param Runner $runner
+   */
+  public function updateRunner(Runner $runner) : void {
+    $this->redis->hSet(self::HASH_RUNNER, $runner->getId(), $runner);
+  }
+
+  /**
+   * Get runner.
+   *
+   * @param string $runnerId
+   *
+   * @return Runner
+   */
+  public function getRunner(string $runnerId) : Runner {
+    // Load runner.
+    $runner = $this->redis->hGet(self::HASH_RUNNER, $runnerId);
+    if ($runner instanceOf Runner) {
+      return $runner;
+    }
+
+    // Not a valid runner. Delete it and return a fresh one.
+    $this->redis->hDel(self::HASH_RUNNER, $runnerId);
+
+    // Check runner ID.
+    if (!\in_array($runnerId, $this->getRunnerIds(), TRUE)) {
+      $this->outputAndOrLog('Try to load runner with an invalid id.', 'warning');
+      throw new \InvalidArgumentException('Runner ID is invalid. Use one of the following: '.json_encode($this->getRunnerIds()));
+    }
+
+    return new Runner($runnerId);
+  }
+
+  /**
+   * Get runners by ids.
+   *
+   * @param array $runnerIds
+   *
+   * @return array|Runner[]
+   */
+  public function getRunnersById(array $runnerIds) : array {
+    $runners = [];
+    foreach ($runnerIds as $runnerId) {
+      $runners[] = $this->getRunner($runnerId);
+    }
+    return $runners;
   }
 
 }

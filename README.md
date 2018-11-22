@@ -61,10 +61,12 @@ hbm_async_worker:
         fuzz: 600
         timeout: 2.0
         block: 10
-    priorities:
-        - queue.priority.low
-        - queue.priority.medium
-        - queue.priority.high
+    queue:
+        prefix: queue.
+        priorities:
+            - low
+            - medium
+            - high
     error:
         log: true
         file: /var/log/php-async-worker.log

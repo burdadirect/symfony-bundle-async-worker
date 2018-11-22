@@ -1,7 +1,10 @@
 {% extends '@HBMAsyncWorker/layout.text.twig' %}
 
 {% block main %}
+Job ID:
+{{ job.id }}
 {% if job.message %}
+
 Message:
 {{ job.message }}
 {% endif %}

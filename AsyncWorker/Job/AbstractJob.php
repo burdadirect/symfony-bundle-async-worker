@@ -381,19 +381,6 @@ abstract class AbstractJob implements Job {
   /****************************************************************************/
 
   /**
-   * Get queue for job.
-   *
-   * @return string
-   */
-  public function getQueue() : string {
-    if ($this->getRunnerDesired()) {
-      return $this->getPriority().'.'.$this->getRunnerDesired();
-    }
-
-    return $this->getPriority();
-  }
-
-  /**
    * @inheritdoc
    */
   public function getTemplateFolder(): string {
