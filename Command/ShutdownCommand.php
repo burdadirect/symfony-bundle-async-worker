@@ -17,7 +17,7 @@ class ShutdownCommand extends Command {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:shutdown';
+  public const NAME = 'hbm:async-worker:shutdown';
 
   /**
    * @var Messenger

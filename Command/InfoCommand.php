@@ -13,7 +13,7 @@ class InfoCommand extends Command {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:info';
+  public const NAME = 'hbm:async-worker:info';
 
   /**
    * @var Messenger

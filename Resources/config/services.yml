@@ -1,11 +1,11 @@
 services:
-  _defaults: { public: true }
+  _defaults:
+    public: true,
 
   # SERVICES
   hbm.async_worker.console_logger:
     class: HBM\AsyncWorkerBundle\Services\ConsoleLogger
     arguments: ['%hbm.async_worker%', '@logger']
-
 
   hbm.async_worker.messenger:
     class: HBM\AsyncWorkerBundle\Services\Messenger
@@ -17,6 +17,16 @@ services:
 
   # COMMANDS
   HBM\AsyncWorkerBundle\Command\:
-    resource: '../Command'
+    autowire: true
+    resource: '../../Command'
+    exclude: '../../Command/Execution'
     tags:
       - { name: console.command }
+
+  HBM\AsyncWorkerBundle\Command\Execution\:
+    autowire: true
+    resource: '../../Command/Execution'
+    arguments:
+      $config: '%hbm.async_worker%'
+    tags:
+    - { name: console.command }

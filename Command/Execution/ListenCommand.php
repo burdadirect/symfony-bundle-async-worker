@@ -6,7 +6,7 @@ use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
 use HBM\AsyncWorkerBundle\Services\Informer;
 use HBM\AsyncWorkerBundle\Services\Messenger;
 use HBM\AsyncWorkerBundle\Services\ConsoleLogger;
-use LongRunning\Core\Cleaner;
+use LongRunning\Core\DelegatingCleaner;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
@@ -17,10 +17,10 @@ class ListenCommand extends AbstractExecutionCommand {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:listen';
+  public const NAME = 'hbm:async-worker:listen';
 
   /**
-   * @var Cleaner
+   * @var DelegatingCleaner
    */
   private $cleaner;
 
@@ -30,10 +30,10 @@ class ListenCommand extends AbstractExecutionCommand {
    * @param array $config
    * @param Messenger $messenger
    * @param Informer $informer
-   * @param Cleaner $cleaner
+   * @param DelegatingCleaner $cleaner
    * @param ConsoleLogger $outputLogger
    */
-  public function __construct(array $config, Messenger $messenger, Informer $informer, Cleaner $cleaner, ConsoleLogger $outputLogger) {
+  public function __construct(array $config, Messenger $messenger, Informer $informer, DelegatingCleaner $cleaner, ConsoleLogger $outputLogger) {
     parent::__construct($config, $messenger, $informer, $outputLogger);
 
     $this->cleaner = $cleaner;
@@ -112,6 +112,7 @@ class ListenCommand extends AbstractExecutionCommand {
       // Set the last time this runner checked in, use this to help determine when scripts die.
       ->setRunStarted(new \DateTime('@'.$timeStart))
       ->setRunPid(getmypid())
+      ->incrStarts()
       ->setState(Runner::STATE_LISTENING)
     );
     $this->outputAndOrLog('Runner started %RUNNER_ID%! Listening for jobs...', 'notice');

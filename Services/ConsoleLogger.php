@@ -42,11 +42,10 @@ class ConsoleLogger {
    * Logger constructor.
    *
    * @param array $config
-   * @param LoggerInterface|NULL $logger
+   * @param LoggerInterface $logger
    */
   public function __construct(array $config, LoggerInterface $logger = NULL) {
     $this->config = $config;
-    $this->setLogger($logger);
   }
 
   /**

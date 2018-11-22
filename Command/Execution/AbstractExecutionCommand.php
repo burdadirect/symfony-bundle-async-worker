@@ -70,12 +70,12 @@ abstract class AbstractExecutionCommand extends Command {
     $this->runner = $input->getArgument('runner');
     $this->input = $input;
 
-   /***************************************************************************/
+    /***************************************************************************/
     /* PREPARE CONSOLE LOGGER                                                 */
     /**************************************************************************/
 
     $this->initializeCommand($input, $output);
-    $this->consoleLogger->setReplacement('%RUNNER_ID%', '(runner ID "'.$this->getRunner()->getId().'")');
+    $this->consoleLogger->setReplacement('%RUNNER_ID%', '(runner ID "'.$this->runner.'")');
 
     /**************************************************************************/
     /* PREPARE EXECUTION                                                      */
@@ -83,6 +83,7 @@ abstract class AbstractExecutionCommand extends Command {
 
     ini_set('log_errors', (int) $this->config['error']['log']);
     ini_set('error_log', $this->config['error']['file']);
+
   }
 
   /**
@@ -120,15 +121,6 @@ abstract class AbstractExecutionCommand extends Command {
       /************************************************************************/
       if (!$job = $this->messenger->getJob($jobId)) {
         $this->outputAndOrLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
-        return FALSE;
-      }
-
-      /************************************************************************/
-      /* CHECK IF JOB IS CANCELLED                                            */
-      /************************************************************************/
-      if ($job->getCancelled()) {
-        $this->outputAndOrLog('Job ID '.$job->getId().' discarded (cancelled) %RUNNER_ID%.', 'info');
-        $this->messenger->discardJob($job);
         return FALSE;
       }
 

@@ -651,24 +651,6 @@ class Messenger {
   /****************************************************************************/
 
   /**
-   * @param string $jobId
-   */
-  public function markJobAsCancelledById(string $jobId) : void {
-    if ($job = $this->getJob($jobId)) {
-      $this->markJobAsCancelled($job);
-    }
-  }
-
-  /**
-   * @param AbstractJob $job
-   */
-  public function markJobAsCancelled(AbstractJob $job) : void {
-    $job->setCancelled(new \DateTime('now'));
-    $job->setState(Job::STATE_CANCELLED);
-    $this->updateJob($job);
-  }
-
-  /**
    * @param AbstractJob $job
    * @param string|NULL $runnerId
    */
@@ -743,6 +725,15 @@ class Messenger {
     }
 
     return new Runner($runnerId);
+  }
+
+  /**
+   * Get runners.
+   *
+   * @return array|Runner[]
+   */
+  public function getRunners() : array {
+    return $this->getRunnersById($this->getRunnerIds());
   }
 
   /**

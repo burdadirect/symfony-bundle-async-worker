@@ -12,7 +12,7 @@ class SingleCommand extends AbstractExecutionCommand {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:single';
+  public const NAME = 'hbm:async-worker:single';
 
   /**
    * @inheritdoc

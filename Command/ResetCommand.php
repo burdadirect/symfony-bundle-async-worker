@@ -17,7 +17,7 @@ class ResetCommand extends Command {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:reset';
+  public const NAME = 'hbm:async-worker:reset';
 
   /**
    * @var Messenger

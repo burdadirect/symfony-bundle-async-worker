@@ -42,11 +42,6 @@ abstract class AbstractJob implements Job {
   /**
    * @var \DateTime
    */
-  private $cancelled;
-
-  /**
-   * @var \DateTime
-   */
   private $delayed;
 
   /**
@@ -220,28 +215,6 @@ abstract class AbstractJob implements Job {
    */
   public function getStarted() : ?\DateTime {
     return $this->started;
-  }
-
-  /**
-   * Set cancelled.
-   *
-   * @param \DateTime|NULL $cancelled
-   *
-   * @return self
-   */
-  public function setCancelled(\DateTime $cancelled = NULL) : self {
-    $this->cancelled = $cancelled;
-
-    return $this;
-  }
-
-  /**
-   * Get cancelled.
-   *
-   * @return \DateTime|NULL
-   */
-  public function getCancelled() : ?\DateTime {
-    return $this->cancelled;
   }
 
   /**

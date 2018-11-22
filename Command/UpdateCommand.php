@@ -16,7 +16,7 @@ class UpdateCommand extends Command {
   /**
    * @var string
    */
-  public const NAME = 'hbm:async_worker:update';
+  public const NAME = 'hbm:async-worker:update';
 
   /**
    * @var Messenger
