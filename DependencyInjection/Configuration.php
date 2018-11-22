@@ -54,6 +54,8 @@ class Configuration implements ConfigurationInterface {
         ->arrayNode('mail')->addDefaultsIfNotSet()
           ->children()
             ->scalarNode('to')->defaultNull()->end()
+            ->scalarNode('subject')->defaultValue('Async job finished')->end()
+            ->scalarNode('text2html')->defaultFalse()->info('Automatically adds the nl2br-text-version as html part of the email.')->end()
             ->scalarNode('fromName')->defaultNull()->end()
             ->scalarNode('fromAddress')->defaultNull()->end()
           ->end()

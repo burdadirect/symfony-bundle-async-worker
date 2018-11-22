@@ -73,22 +73,27 @@ class Informer {
         $job->getTemplateFolder().'subject.text.twig',
         '@HBMAsyncWorker/subject.text.twig',
       ], $returnData);
-      $message->setSubject($subject);
+      $message->setSubject($subject ?: $this->config['mail']['subject']);
 
       // Render text body.
-      $body = $this->renderTemplateChain([
+      $bodyText = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.text.twig',
         '@HBMAsyncWorker/body.text.twig',
       ], $returnData);
-      $message->setBody($body, 'text/plain');
+      $message->setBody($bodyText, 'text/plain');
 
       // Render html body.
-      $body = $this->renderTemplateChain([
+      $bodyHtml = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.html.twig',
         '@HBMAsyncWorker/body.html.twig',
       ], $returnData);
-      if ($body) {
-        $message->setBody($body, 'text/html');
+
+      // Fallback to nl2br of the text version.
+      if (!$bodyHtml && $this->config['mail']['text2html']) {
+        $bodyHtml = nl2br($bodyText);
+      }
+      if ($bodyHtml) {
+        $message->addPart($bodyHtml, 'text/html');
       }
 
       $this->mailer->send($message);
