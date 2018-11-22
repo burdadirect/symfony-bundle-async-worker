@@ -519,12 +519,7 @@ class Messenger {
    * @return array|AbstractJob[]
    */
   public function getJobsQueued(string $priority, string $runnerId = NULL) : array {
-    $queue = $priority;
-    if ($runnerId) {
-      $queue .= '.'.$runnerId;
-    }
-
-    return $this->getJobsById($this->redis->lRange($queue, 0, -1));
+    return $this->getJobsById($this->redis->lRange($this->buildQueueName($priority, $runnerId), 0, -1));
   }
 
   /**
