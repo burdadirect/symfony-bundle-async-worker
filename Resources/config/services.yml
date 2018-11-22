@@ -1,32 +1,32 @@
 services:
-  _defaults:
-    public: true,
+    _defaults:
+        public: true
 
-  # SERVICES
-  hbm.async_worker.console_logger:
-    class: HBM\AsyncWorkerBundle\Services\ConsoleLogger
-    arguments: ['%hbm.async_worker%', '@logger']
+    # SERVICES
+    hbm.async_worker.console_logger:
+        class: HBM\AsyncWorkerBundle\Services\ConsoleLogger
+        arguments: ['%hbm.async_worker%', '@logger']
 
-  hbm.async_worker.messenger:
-    class: HBM\AsyncWorkerBundle\Services\Messenger
-    arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis', '@hbm.async_worker.console_logger']
+    hbm.async_worker.messenger:
+        class: HBM\AsyncWorkerBundle\Services\Messenger
+        arguments: ['%hbm.async_worker%', '@hbm.async_worker.redis', '@hbm.async_worker.console_logger']
 
-  hbm.async_worker.informer:
-    class: HBM\AsyncWorkerBundle\Services\Informer
-    arguments: ['%hbm.async_worker%', '@mailer', '@templating', '@hbm.async_worker.console_logger']
+    hbm.async_worker.informer:
+        class: HBM\AsyncWorkerBundle\Services\Informer
+        arguments: ['%hbm.async_worker%', '@mailer', '@templating', '@hbm.async_worker.console_logger']
 
-  # COMMANDS
-  HBM\AsyncWorkerBundle\Command\:
-    autowire: true
-    resource: '../../Command'
-    exclude: '../../Command/Execution'
-    tags:
-      - { name: console.command }
+    # COMMANDS
+    HBM\AsyncWorkerBundle\Command\:
+        autowire: true
+        resource: '../../Command'
+        exclude: '../../Command/Execution'
+        tags:
+            - { name: console.command }
 
-  HBM\AsyncWorkerBundle\Command\Execution\:
-    autowire: true
-    resource: '../../Command/Execution'
-    arguments:
-      $config: '%hbm.async_worker%'
-    tags:
-    - { name: console.command }
+    HBM\AsyncWorkerBundle\Command\Execution\:
+        autowire: true
+        resource: '../../Command/Execution'
+        arguments:
+            $config: '%hbm.async_worker%'
+        tags:
+            - { name: console.command }
