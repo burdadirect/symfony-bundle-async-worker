@@ -74,7 +74,7 @@ class ShutdownCommand extends Command {
     $runners = $this->messenger->getRunnersById($runnerIds);
     foreach ($runners as $runner) {
       $this->messenger->updateRunner($runner->sendShutdownSignal());
-      $this->outputAndOrLog('Sent shutdown request (runner ID "'.$runner->getId().'").', 'notice');
+      $this->outputAndOrLog(['LOG' => 'Sent shutdown request.', 'RUNNER_ID' => $runner->getId()], 'notice');
     }
   }
 

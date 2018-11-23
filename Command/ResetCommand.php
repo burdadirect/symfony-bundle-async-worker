@@ -74,7 +74,7 @@ class ResetCommand extends Command {
     $runners = $this->messenger->getRunnersById($runnerIds);
     foreach ($runners as $runner) {
       $this->messenger->updateRunner($runner->reset());
-      $this->outputAndOrLog('Forced reset (runner ID "'.$runner->getId().'").', 'notice');
+      $this->outputAndOrLog(['LOG' => 'Forced reset.', 'RUNNER_ID' => $runner->getId()], 'notice');
     }
   }
 

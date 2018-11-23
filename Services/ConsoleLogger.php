@@ -106,21 +106,54 @@ class ConsoleLogger {
   /**
    * Output (and log) messages.
    *
-   * @param $message
-   * @param $level
+   * @param string|array $message
+   * @param string $level
    */
-  public function outputAndOrLog(string $message, string $level = NULL) : void {
-    $message = str_replace(array_keys($this->replacements), array_values($this->replacements), $message);
+  public function outputAndOrLog($message, string $level = NULL) : void {
+    $parts = ['PREFIX', 'JOB', 'LOG', 'RUNNER', 'POSTFIX'];
+
+    $data = array_fill_keys($parts, NULL);
+    if (\is_array($message)) {
+      $data = array_merge($data, $message);
+    } else {
+      $data['LOG'] = $message;
+    }
+
+    if (isset($data['RUNNER_ID']) || isset($this->replacements['RUNNER_ID'])) {
+      $data['RUNNER'] = $this->config['logger']['runner'];
+    }
+    if (isset($data['JOB_ID']) || isset($this->replacements['JOB_ID'])) {
+      $data['JOB'] = $this->config['logger']['job'];
+    }
+
+    // Fill up missing replacements.
+    foreach ($this->replacements as $key => $value) {
+      if (!isset($data[$key])) {
+        $data[$key] = $value;
+      }
+    }
+
+    // Replace in format.
+    if ($data['LOG'] === NULL) {
+      $formattedMessage = '';
+    } else {
+      $formattedMessage = $this->config['logger']['format'];
+      foreach ($data as $key => $value) {
+        $delimitedKey = $this->config['logger']['delimiter'].$key.$this->config['logger']['delimiter'];
+        $formattedMessage = str_replace($delimitedKey, $value, $formattedMessage);
+      }
+    }
+
 
     if ($this->loggerActive && $this->logger) {
-      $this->logger->log($level ?: 'debug', $message);
+      $this->logger->log($level ?: 'debug', $formattedMessage);
     }
 
     if ($this->outputActive && $this->output) {
       if ($level) {
-        $this->output->writeln('<hbm_async_worker_'.$level.'>'.$message.'</hbm_async_worker_'.$level.'>');
+        $this->output->writeln('<hbm_async_worker_'.$level.'>'.$formattedMessage.'</hbm_async_worker_'.$level.'>');
       } else {
-        $this->output->writeln($message);
+        $this->output->writeln($formattedMessage);
       }
     }
   }

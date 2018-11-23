@@ -36,7 +36,7 @@ class SingleCommand extends AbstractExecutionCommand {
     /* CHECK IF RUNNER IS CURRENTLY LISTENING                                 */
     /**************************************************************************/
     if (!$input->getOption('force') && $this->getRunner()->isListening()) {
-      $this->outputAndOrLog('Runner is currently listening %RUNNER_ID%.', 'info');
+      $this->outputAndOrLog('Runner is currently listening.', 'info');
       return;
     }
 
@@ -44,14 +44,14 @@ class SingleCommand extends AbstractExecutionCommand {
     /* CHECK IF RUNNER IS CURRENTLY BUSY                                      */
     /**************************************************************************/
     if (!$input->getOption('force') && $this->getRunner()->isBusy()) {
-      $this->outputAndOrLog('Runner is currently busy %RUNNER_ID%.', 'info');
+      $this->outputAndOrLog('Runner is currently busy.', 'info');
       return;
     }
 
     /**************************************************************************/
     /* RUN SINGLE COMMAND                                                     */
     /**************************************************************************/
-    $this->outputAndOrLog('Running a single job %RUNNER_ID%.', 'notice');
+    $this->outputAndOrLog('Running a single job.', 'notice');
 
     // Execute queued job (if there is any).
     $this->executeOne($output);

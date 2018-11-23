@@ -16,12 +16,12 @@ trait ConsoleLoggerTrait {
   protected $consoleLogger;
 
   /**
-   * Output and or log message.
+   * Output and or log message. NULL for empty line.
    *
-   * @param string $message
+   * @param string|array|NULL $message
    * @param string $level
    */
-  public function outputAndOrLog(string $message, string $level = NULL) : void {
+  public function outputAndOrLog($message, string $level = NULL) : void {
     $this->consoleLogger->outputAndOrLog($message, $level);
   }
 

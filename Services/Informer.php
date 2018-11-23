@@ -96,9 +96,8 @@ class Informer {
         $message->addPart($bodyHtml, 'text/html');
       }
 
+      $this->outputAndOrLog('Informing '.$email.' about job.', 'info');
       $this->mailer->send($message);
-
-      $this->outputAndOrLog('Informing '.$email.' about job ID '.$job->getId().' %RUNNER_ID%.', 'info');
 
       return FALSE;
     }

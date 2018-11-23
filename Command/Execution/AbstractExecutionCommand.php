@@ -75,7 +75,7 @@ abstract class AbstractExecutionCommand extends Command {
     /**************************************************************************/
 
     $this->initializeCommand($input, $output);
-    $this->consoleLogger->setReplacement('%RUNNER_ID%', '(runner ID "'.$this->runner.'")');
+    $this->consoleLogger->setReplacement('RUNNER_ID', $this->runner);
 
     /**************************************************************************/
     /* PREPARE EXECUTION                                                      */
@@ -113,21 +113,24 @@ abstract class AbstractExecutionCommand extends Command {
    * @return bool
    */
   protected function executeOne(OutputInterface $output) : bool {
+    $this->consoleLogger->unsetReplacement('JOB_ID');
     if ($jobId = $this->messenger->popJobId($this->runner, $queue, $this->config['runner']['block'])) {
-      $this->outputAndOrLog('');
+      $this->consoleLogger->setReplacement('JOB_ID', $jobId);
+
+      $this->outputAndOrLog(NULL);
 
       /************************************************************************/
       /* CHECK IF JOB IS DISCARDED                                            */
       /************************************************************************/
       if (!$job = $this->messenger->getJob($jobId)) {
-        $this->outputAndOrLog('Job ID '.$job->getId().' discarded (missing) %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Job discarded (missing).', 'notice');
         return FALSE;
       }
 
       /************************************************************************/
       /* SETTING RUNNER STATUS TO RUNNING                                     */
       /************************************************************************/
-      $this->outputAndOrLog('Found job ID '.$job->getId().' in queue "'.$queue.'" %RUNNER_ID%.', 'debug');
+      $this->outputAndOrLog('Job found in queue "'.$queue.'".', 'info');
       $this->messenger->updateRunner($this->getRunner()->addJobId($jobId));
 
       /**************************************************************************/
@@ -151,7 +154,7 @@ abstract class AbstractExecutionCommand extends Command {
         // Delete async job if everything went fine
         $this->messenger->discardJob($job);
       } catch (\Exception $e) {
-        $this->outputAndOrLog('Job ID '.$job->getId().' failed %RUNNER_ID%. Message: '.$e->getMessage(), 'error');
+        $this->outputAndOrLog(['LOG' => 'Job failed.', 'POSTFIX' => ' Message: '.$e->getMessage()], 'critical');
         $this->messenger->markJobAsFailed($job);
       }
 
@@ -164,14 +167,14 @@ abstract class AbstractExecutionCommand extends Command {
       /* OUTPUT RESULT                                                        */
       /************************************************************************/
       if ($executor->getReturnCode() === NULL) {
-        $this->outputAndOrLog('Job ID '.$job->getId().' invalid %RUNNER_ID%.', 'alert');
+        $this->outputAndOrLog('Job invalid.', 'error');
       } elseif ($executor->getReturnCode() === 0) {
-        $this->outputAndOrLog('Job ID '.$job->getId().' successful %RUNNER_ID%.', 'info');
+        $this->outputAndOrLog('Job successful.', 'info');
       } else {
-        $this->outputAndOrLog('Job ID '.$job->getId().' erroneous %RUNNER_ID%.', 'error');
+        $this->outputAndOrLog('Job erroneous.', 'error');
       }
 
-      $this->outputAndOrLog('');
+      $this->outputAndOrLog(NULL);
 
       $this->messenger->updateRunner($this->getRunner()->incrJobs()->removeJobId($jobId));
 

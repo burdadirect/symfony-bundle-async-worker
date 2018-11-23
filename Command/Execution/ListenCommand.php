@@ -60,7 +60,7 @@ class ListenCommand extends AbstractExecutionCommand {
     /* CHECK REDIS                                                            */
     /**************************************************************************/
     if (!$this->messenger->isAvailable()) {
-      $this->outputAndOrLog('Redis is not available %RUNNER_ID%.', 'critical');
+      $this->outputAndOrLog('Redis is not available.', 'critical');
       return;
     }
 
@@ -69,10 +69,10 @@ class ListenCommand extends AbstractExecutionCommand {
     /**************************************************************************/
     if ($this->getRunner()->isTimedOut()) {
       if ($this->config['runner']['autorecover']) {
-        $this->outputAndOrLog('Autorecover runner after timeout %RUNNER_ID%.', 'notice');
+        $this->outputAndOrLog('Autorecover runner after timeout.', 'notice');
         $this->messenger->updateRunner($this->getRunner()->incrAutorecover()->reset());
       } else {
-        $this->outputAndOrLog('Runner has timed out %RUNNER_ID%.', 'alert');
+        $this->outputAndOrLog('Runner has timed out.', 'alert');
         $this->messenger->updateRunner($this->getRunner()->incrTimeouts()->setState(Runner::STATE_TIMEOUT));
         return;
       }
@@ -82,7 +82,7 @@ class ListenCommand extends AbstractExecutionCommand {
     /* CHECK IF RUNNER ALREADY LISTENING                                      */
     /**************************************************************************/
     if ($this->getRunner()->isListening()) {
-      $this->outputAndOrLog('Runner is already listening %RUNNER_ID%.', 'debug');
+      $this->outputAndOrLog('Runner is already listening.', 'debug');
       return;
     }
 
@@ -115,7 +115,7 @@ class ListenCommand extends AbstractExecutionCommand {
       ->incrStarts()
       ->setState(Runner::STATE_LISTENING)
     );
-    $this->outputAndOrLog('Runner started %RUNNER_ID%! Listening for jobs...', 'notice');
+    $this->outputAndOrLog(['LOG' => 'Runner started!', 'POSTFIX' => ' Listening for jobs...'], 'notice');
 
     /**************************************************************************/
     /* POLLING                                                                */
@@ -140,7 +140,7 @@ class ListenCommand extends AbstractExecutionCommand {
 
     // Reset runner.
     $this->messenger->updateRunner($this->getRunner()->incrStops()->reset());
-    $this->outputAndOrLog('Planned shutdown %RUNNER_ID%! Waiting for restart...', 'notice');
+    $this->outputAndOrLog(['LOG' => 'Planned shutdown!', 'POSTFIX' => ' Waiting for restart...'], 'notice');
   }
 
   /**
@@ -150,7 +150,7 @@ class ListenCommand extends AbstractExecutionCommand {
    */
   private function hasRunnerReceivedShutdownSignal() : bool {
     if ($this->getRunner()->getRunShutdown()) {
-      $this->outputAndOrLog('Shutdown request detected %RUNNER_ID%! Shutting down...', 'notice');
+      $this->outputAndOrLog(['LOG' => 'Shutdown request detected.', 'POSTFIX' => ' Shutting down...'], 'notice');
       $this->messenger->updateRunner($this->getRunner()->incrShutdowns()->reset());
 
       return TRUE;
