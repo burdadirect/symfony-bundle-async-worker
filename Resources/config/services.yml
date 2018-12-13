@@ -13,7 +13,7 @@ services:
 
     hbm.async_worker.informer:
         class: HBM\AsyncWorkerBundle\Services\Informer
-        arguments: ['%hbm.async_worker%', '@mailer', '@templating', '@hbm.async_worker.console_logger']
+        arguments: ['%hbm.async_worker%', '@hbm.async_worker.mailer', '@templating', '@hbm.async_worker.console_logger']
 
     # COMMANDS
     HBM\AsyncWorkerBundle\Command\:
