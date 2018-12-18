@@ -16,8 +16,8 @@ class Configuration implements ConfigurationInterface {
    * {@inheritdoc}
    */
   public function getConfigTreeBuilder() {
-    $treeBuilder = new TreeBuilder();
-    $rootNode = $treeBuilder->root('hbm_async_worker');
+    $treeBuilder = new TreeBuilder('hbm_async_worker');
+    $rootNode = $treeBuilder->getRootNode();
 
     $rootNode
       ->children()
