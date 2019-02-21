@@ -73,7 +73,9 @@ abstract class AbstractJob implements Job {
    * AbstractJob constructor.
    *
    * @param string $priority
-   * @param string $runnerId
+   * @param string|NULL $runnerId
+   *
+   * @throws \Exception
    */
   public function __construct(string $priority, string $runnerId = NULL) {
     $this->id = uniqid('', TRUE);

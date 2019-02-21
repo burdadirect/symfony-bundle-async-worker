@@ -25,6 +25,7 @@ class Messenger {
 
   protected const HASH_JOBS_FAILED  = 'jobs.failed';
   protected const HASH_JOBS_EXPIRED = 'jobs.expired';
+  protected const HASH_JOBS_PARKED  = 'jobs.parked';
   protected const HASH_JOBS_RUNNING = 'jobs.running';
 
   /**
@@ -109,10 +110,8 @@ class Messenger {
    * Dispatch an async job to the corresponding (delayed) queue.
    *
    * @param AbstractJob $job
-   *
-   * @return bool
    */
-  public function dispatchJob(AbstractJob $job) : bool {
+  public function dispatchJob(AbstractJob $job) : void {
     if (!\in_array($job->getPriority(), $this->getPriorities(), TRUE)) {
       $this->outputAndOrLog('Try to dispatch job with an invalid/missing priority.', 'warning');
       throw new \InvalidArgumentException('Priority is invalid. Use one of the following: '.json_encode($this->getPriorities()));
@@ -124,11 +123,27 @@ class Messenger {
       $this->redis->zAdd(self::SET_JOBS_EXPIRING, $job->getExpires()->getTimestamp(), $job->getId());
     }
 
-    if ($job->getDelayed()) {
-      return $this->delayJob($job, $job->getDelayed()->getTimestamp());
+    if ($job->getState() === Job::STATE_PARKED) {
+      $this->redis->hSet(self::HASH_JOBS_PARKED, $job->getId(), TRUE);
+      return;
     }
 
-    return $this->enqueueJob($job);
+    if ($job->getDelayed()) {
+      $this->delayJob($job, $job->getDelayed()->getTimestamp());
+      return;
+    }
+
+    $this->enqueueJob($job);
+  }
+
+  /**
+   * Redispatch an async job (for example after is has been expired, failed or parked).
+   *
+   * @param AbstractJob $job
+   */
+  public function redispatchJob(AbstractJob $job) : void {
+    $this->resetJob($job);
+    $this->dispatchJob($job);
   }
 
   /**
@@ -213,40 +228,6 @@ class Messenger {
   public function expediteJobById(string $jobId) : bool {
     if ($job = $this->getJob($jobId)) {
       return $this->expediteJob($job);
-    }
-
-    return FALSE;
-  }
-
-  /****************************************************************************/
-
-  /**
-   * Requeue an async job (for example after it has failed).
-   *
-   * @param AbstractJob $job
-   *
-   * @return bool
-   */
-  public function requeueJob(AbstractJob $job) : bool {
-    $job->setExpires(NULL);
-    $job->setDelayed(NULL);
-    $job->setState(Job::STATE_RETRY);
-
-    $this->resetJob($job);
-
-    return $this->dispatchJob($job);
-  }
-
-  /**
-   * Requeue a job by id.
-   *
-   * @param string $jobId
-   *
-   * @return bool
-   */
-  public function requeueJobById(string $jobId) : bool {
-    if ($job = $this->getJob($jobId)) {
-      return $this->requeueJob($job);
     }
 
     return FALSE;
@@ -385,6 +366,26 @@ class Messenger {
   /****************************************************************************/
 
   /**
+   * Get all parked jobs.
+   *
+   * @return array|AbstractJob[]
+   */
+  public function getJobsParked() : array {
+    return $this->getJobsById(array_keys($this->redis->hGetAll(self::HASH_JOBS_PARKED)));
+  }
+
+  /**
+   * Count all parked jobs.
+   *
+   * @return int
+   */
+  public function countJobsParked() : int {
+    return $this->redis->hLen(self::HASH_JOBS_PARKED);
+  }
+
+  /****************************************************************************/
+
+  /**
    * Get jobs by id.
    *
    * @param array $jobIds
@@ -407,6 +408,7 @@ class Messenger {
     $this->redis->hDel(self::HASH_JOBS_RUNNING, $job->getId());
     $this->redis->hDel(self::HASH_JOBS_FAILED, $job->getId());
     $this->redis->hDel(self::HASH_JOBS_EXPIRED, $job->getId());
+    $this->redis->hDel(self::HASH_JOBS_PARKED, $job->getId());
 
     $this->redis->lRem($this->getQueue($job), $job->getId(), 0);
     $this->redis->zRem(self::SET_JOBS_DELAYED, $job);
@@ -421,7 +423,7 @@ class Messenger {
   protected function updateJob(AbstractJob $job) : void {
     $res = $this->redis->hSet(self::HASH_JOBS, $job->getId(), $job);
 
-    // Not an update. AsyncJob must have been altered in the meantime.
+    // Not an update, but an insert. AsyncJob must have been altered in the meantime.
     if ($res === 1) {
       // Delete job to prevent double execution.
       $this->redis->hDel(self::HASH_JOBS, $job->getId());
@@ -647,7 +649,9 @@ class Messenger {
 
   /**
    * @param AbstractJob $job
-   * @param string|NULL $runnerId
+   * @param string $runnerId
+   *
+   * @throws \Exception
    */
   public function markJobAsRunning(AbstractJob $job, string $runnerId) : void {
     $job->setStarted(new \DateTime('now'));
