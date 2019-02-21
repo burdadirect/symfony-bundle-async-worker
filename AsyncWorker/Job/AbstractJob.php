@@ -74,12 +74,13 @@ abstract class AbstractJob implements Job {
    *
    * @param string $priority
    * @param string|NULL $runnerId
-   *
-   * @throws \Exception
    */
   public function __construct(string $priority, string $runnerId = NULL) {
     $this->id = uniqid('', TRUE);
-    $this->setCreated(new \DateTime('now'));
+    try {
+      $this->setCreated(new \DateTime('now'));
+    } catch (\Exception $e) {
+    }
     $this->setPriority($priority);
     $this->setRunnerDesired($runnerId);
   }
