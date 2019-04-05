@@ -6,7 +6,7 @@ use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
 use HBM\AsyncWorkerBundle\Services\Informer;
 use HBM\AsyncWorkerBundle\Services\Messenger;
 use HBM\AsyncWorkerBundle\Services\ConsoleLogger;
-use LongRunning\Core\DelegatingCleaner;
+use LongRunning\Core\Cleaner;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,7 +20,7 @@ class ListenCommand extends AbstractExecutionCommand {
   public const NAME = 'hbm:async-worker:listen';
 
   /**
-   * @var DelegatingCleaner
+   * @var Cleaner
    */
   private $cleaner;
 
@@ -30,11 +30,11 @@ class ListenCommand extends AbstractExecutionCommand {
    * @param array $config
    * @param Messenger $messenger
    * @param Informer $informer
-   * @param DelegatingCleaner $cleaner
-   * @param ConsoleLogger $outputLogger
+   * @param Cleaner $cleaner
+   * @param ConsoleLogger $consoleLogger
    */
-  public function __construct(array $config, Messenger $messenger, Informer $informer, DelegatingCleaner $cleaner, ConsoleLogger $outputLogger) {
-    parent::__construct($config, $messenger, $informer, $outputLogger);
+  public function __construct(array $config, Messenger $messenger, Informer $informer, Cleaner $cleaner, ConsoleLogger $consoleLogger) {
+    parent::__construct($config, $messenger, $informer, $consoleLogger);
 
     $this->cleaner = $cleaner;
   }
