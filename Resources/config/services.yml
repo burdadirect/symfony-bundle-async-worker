@@ -21,7 +21,7 @@ services:
         class: HBM\AsyncWorkerBundle\Services\Informer
         arguments:
             $config: '%hbm.async_worker%'
-            $mailer: '@mailer'
+            $mailer: '@hbm.async_worker.alias.mailer'
             $templating: '@hbm.async_worker.alias.templating'
             $consoleLogger: '@hbm.async_worker.console_logger'
 
