@@ -85,7 +85,7 @@ class Command extends AbstractJob {
    * @inheritdoc
    */
   public function getTemplateFolder(): string {
-    return '@HBMAsyncWorker/Command/';
+    return '@HBMAsyncWorker/Informer/Command/';
   }
 
 }

@@ -71,21 +71,21 @@ class Informer {
       // Render subject.
       $subject = $this->renderTemplateChain([
         $job->getTemplateFolder().'subject.text.twig',
-        '@HBMAsyncWorker/subject.text.twig',
+        '@HBMAsyncWorker/Informer/subject.text.twig',
       ], $returnData);
       $message->setSubject($subject ?: $this->config['mail']['subject']);
 
       // Render text body.
       $bodyText = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.text.twig',
-        '@HBMAsyncWorker/body.text.twig',
+        '@HBMAsyncWorker/Informer/body.text.twig',
       ], $returnData);
       $message->setBody($bodyText, 'text/plain');
 
       // Render html body.
       $bodyHtml = $this->renderTemplateChain([
         $job->getTemplateFolder().'body.html.twig',
-        '@HBMAsyncWorker/body.html.twig',
+        '@HBMAsyncWorker/Informer/body.html.twig',
       ], $returnData);
 
       // Fallback to nl2br of the text version.

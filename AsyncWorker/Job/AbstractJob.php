@@ -360,7 +360,7 @@ abstract class AbstractJob implements Job {
    * @inheritdoc
    */
   public function getTemplateFolder(): string {
-    return '@HBMAsyncWorker';
+    return '@HBMAsyncWorker/Informer/';
   }
 
 }

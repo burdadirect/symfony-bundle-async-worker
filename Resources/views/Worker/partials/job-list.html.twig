@@ -1,0 +1,69 @@
+{% import '@HBMTwigExtensions/macrosBootstrap.html.twig' as macrosBootstrap %}
+
+{% if jobs|length > 0 %}
+  {% if settings['headline']|default(false) %}
+    <h3>{{ settings['headline']|raw }} - <span class="highlight">#{{ jobs|length }}</span></h3>
+  {% endif %}
+  <table class="table {{ settings['table'] }} table-hover table-bordered table-sm">
+    <thead>
+    <tr class="small ">
+      <th class="text-center">Position</th>
+      <th>Job</th>
+      <th>Message</th>
+      <th>E-Mail</th>
+      <th>Datum</th>
+      <th>ID/Status</th>
+      <th class="text-center">Worker<br /><small>gewünscht/ausführend</small></th>
+      <th class="text-center">Aktionen</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td class="text-center">
+          {% if settings['position']|default(false) %}
+            {{ loop.index }}
+          {% else %}
+            n/a
+          {% endif %}
+        </td>
+        <td>
+          {% if job is instanceof("HBM\\AsyncWorkerBundle\\AsyncWorker\\Job\\Command") %}
+            <ul class="list-group list-group-flush list-group-transparent list-group-narrow">
+              <li class="list-group-item"><code style="color:inherit;">{{ job.command }}</code></li>
+              <li class="list-group-item"><code style="color:inherit;">{{ job.arguments|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></li>
+            </ul>
+          {% else %}
+            n/a
+          {% endif %}
+        </td>
+        <td>{{ job.message|link }}</td>
+        <td>{{ job.email }}</td>
+        <td>
+          <span class="badge"><strong>Erstellt: </strong>{{ job.created|dateOrDefault('Y-m-d H:i:s', 'n/a') }}</span><br />
+          <span class="badge"><strong>Gestartet: </strong>{{ job.started|dateOrDefault('Y-m-d H:i:s', 'n/a') }}</span><br />
+          <span class="badge"><strong>Verzögert: </strong>{{ job.delayed|dateOrDefault('Y-m-d H:i:s', 'n/a') }}</span><br />
+          <span class="badge"><strong>Ablauf: </strong>{{ job.expires|dateOrDefault('Y-m-d H:i:s', 'n/a') }}</span><br />
+        </td>
+        <td class="text-center">
+          <span class="badge badge-secondary">{{ job.id }}</span><br />
+          <span class="badge badge-dark">{{ job.state|default('n/a') }}</span>
+        </td>
+        <td class="text-center">{{ job.workerDesired|default('-') }} / {{ job.workerExecuting|default('-') }}</td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Aktionen">
+            {% if 'delete' in settings['buttons'] %}
+              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-trash').href(path('route_async_worker_job_delete', { 'jobId': job.id })).title('Job löschen').attr('data-confirm', 'Wirklich löschen?')) }}
+            {% endif %}
+            {% if 'force' in settings['buttons'] %}
+              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-redo').href(path('route_async_worker_job_force', { 'jobId': job.id })).title('Job (erneut) ausführen').attr('data-confirm', 'Wirklich (erneut) ausführen?')) }}
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% elseif settings['empty']|default(false) %}
+  <p>{{ settings['empty'] }}</p>
+{% endif %}

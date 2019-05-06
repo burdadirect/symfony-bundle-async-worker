@@ -1,0 +1,86 @@
+<table class="table table-hover table-bordered table-sm">
+  <tbody class="active">
+    {% set badgeStates = {
+      'new': 'badge-warning',
+      'listening': 'badge-success',
+      'stopped': 'badge-info',
+      'timeout': 'badge-danger'
+    } %}
+    <tr>
+      <th>Status</th>
+      <td><span class="badge {{ badgeStates[runner.state]|default('badge-dark') }}">{{ runner.state|default('n/a') }}</span></td>
+    </tr>
+    <tr>
+      <th>Erstellt</th>
+      <td><span class="badge badge-secondary">{{ runner.created|dateOrDefault('Y-m-d H:i:s', 'n/a') }}</span></td>
+    </tr>
+    <tr>
+      <th>Befehle</th>
+      <td>{% include '@HBMAsyncWorker/Worker/partials/runner-actions.html.twig' with { 'runner': runner } only %}</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td colspan="2"></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th>Jobs</th>
+      <td>
+        {% if runner.runJobIds|length > 0 %}
+          <span class="badge badge-danger">{{ runner.runJobIds|length }}</span>
+        {% elseif runner.isListening %}
+          <span class="badge badge-success">idle</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>PID</th>
+      <td><span class="badge badge-secondary">{{ runner.runPid }}</span></td>
+    </tr>
+    <tr>
+      <th>Started</th>
+      <td><span class="badge badge-secondary">{{ runner.runStarted|dateOrDefault('Y-m-d H:i:s') }}</span></td>
+    </tr>
+    <tr>
+      <th>Shutdown</th>
+      <td><span class="badge badge-secondary">{{ runner.runShutdown|dateOrDefault('Y-m-d H:i:s') }}</span></td>
+    </tr>
+    <tr>
+      <th>Timeout</th>
+      <td><span class="badge badge-secondary">{{ runner.runTimeout|dateOrDefault('Y-m-d H:i:s') }}</span></td>
+    </tr>
+  </tbody>
+  <tbody>
+  <tr>
+    <td colspan="2"></td>
+  </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th>Executed Jobs</th>
+      <td><span class="badge badge-secondary">{{ runner.numJobs }}</span></td>
+    </tr>
+    <tr>
+      <th>Starts</th>
+      <td><span class="badge badge-secondary">{{ runner.numStarts }}</span></td>
+    </tr>
+    <tr>
+      <th>Stops</th>
+      <td><span class="badge badge-secondary">{{ runner.numStops }}</span></td>
+    </tr>
+    <tr>
+      <th>Shutdowns</th>
+      <td><span class="badge badge-secondary">{{ runner.numShutdowns }}</span></td>
+    </tr>
+    <tr>
+      <th>Timeouts</th>
+      <td><span class="badge badge-secondary">{{ runner.numTimeouts }}</span></td>
+    </tr>
+    <tr>
+      <th>Autorecover</th>
+      <td><span class="badge badge-secondary">{{ runner.numAutorecover }}</span></td>
+    </tr>
+  </tbody>
+</table>
