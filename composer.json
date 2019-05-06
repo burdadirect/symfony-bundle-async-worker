@@ -1,9 +1,9 @@
 {
-  "name": "burdanews/async-worker-bundle",
+  "name": "burdanews/symfony-bundle-async-worker",
   "description": "HBM Async Worker Bundle - Async execution of symfony commands via redis queues.",
   "authors" : [{
     "name" : "Christian Puchinger",
-    "email" : "puchinger@burda.com"
+    "email" : "christian.puchinger@burda.com"
   }],
   "license": "MIT",
   "type": "symfony-bundle",
