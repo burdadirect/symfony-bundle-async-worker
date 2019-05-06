@@ -1,15 +1,11 @@
 {
   "name": "burdanews/async-worker-bundle",
   "description": "HBM Async Worker Bundle - Async execution of symfony commands via redis queues.",
-  "author" : [{
+  "authors" : [{
     "name" : "Christian Puchinger",
     "email" : "puchinger@burda.com"
   }],
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:burdanews/async-worker-bundle.git"
-  },
   "type": "symfony-bundle",
   "autoload": {
     "psr-0": {
@@ -26,17 +22,17 @@
     "ext-redis": "*",
     "ext-json": "*",
     "psr/log": "^1.0",
-    "symfony/config": "^3.4|^4.1",
-    "symfony/console": "^3.4|^4.1",
-    "symfony/templating": "^3.4|^4.1",
-    "symfony/dependency-injection": "^3.4|^4.1",
+    "symfony/config": "^3.4|^4.2",
+    "symfony/console": "^3.4|^4.2",
+    "symfony/templating": "^3.4|^4.2",
+    "symfony/dependency-injection": "^3.4|^4.2",
     "symfony/swiftmailer-bundle": "^3.2",
     "long-running/long-running": "^0.3.0"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",
     "phpunit/phpunit" : "^6.5|^7.0",
-    "symfony/phpunit-bridge": "^3.4|^4.0"
+    "symfony/phpunit-bridge": "^3.4|^4.2"
   },
   "target-dir": "HBM/AsyncWorkerBundle"
 }
