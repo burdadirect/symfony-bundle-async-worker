@@ -53,10 +53,10 @@
         <td class="text-center">
           <div class="btn-group btn-group-sm" role="group" aria-label="Aktionen">
             {% if 'delete' in settings['buttons'] %}
-              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-trash').href(path('route_async_worker_job_delete', { 'jobId': job.id })).title('Job löschen').attr('data-confirm', 'Wirklich löschen?')) }}
+              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-trash').href(path(route_async_worker_job_delete, { 'jobId': job.id })).title('Job löschen').attr('data-confirm', 'Wirklich löschen?')) }}
             {% endif %}
             {% if 'force' in settings['buttons'] %}
-              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-redo').href(path('route_async_worker_job_force', { 'jobId': job.id })).title('Job (erneut) ausführen').attr('data-confirm', 'Wirklich (erneut) ausführen?')) }}
+              {{ macrosBootstrap.btn2(bsLink().class('ajax').icon('fa-redo').href(path(route_async_worker_job_force, { 'jobId': job.id })).title('Job (erneut) ausführen').attr('data-confirm', 'Wirklich (erneut) ausführen?')) }}
             {% endif %}
           </div>
         </td>

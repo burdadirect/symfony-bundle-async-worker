@@ -3,7 +3,7 @@
     <div class="col-lg-4">
       <h2>Runner <span class="highlight">{{ runner.id }}</span></h2>
       <div data-ajax-target="{{ runner.id }}">
-        {% include '@HBMAsyncWorker/Worker/partials/runner.html.twig' with { 'runner': runner } only %}
+        {% include '@HBMAsyncWorker/Worker/partials/runner.html.twig' with { 'runner': runner } %}
       </div>
     </div>
   {% endfor %}

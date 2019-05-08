@@ -1,8 +1,8 @@
 {% import '@HBMTwigExtensions/macrosBootstrap.html.twig' as macrosBootstrap %}
 
 <div class="btn-group btn-group-sm" role="group" aria-label="Aktionen">
-  {{ macrosBootstrap.btn2(bsLink().icon('fa-sync').attr('data-ajax-click', runner.id).href(path('route_async_worker_runner_refresh', { 'runnerId': runner.id })).title('Runner-Ansicht refreshen')) }}
-  {{ macrosBootstrap.btn1(bsLink().icon('fa-power-off').class('ajax').href(path('route_async_worker_runner_shutdown', { 'runnerId': runner.id })).title('Shutdown-Signal an Runner senden')) }}
-  {{ macrosBootstrap.btn2(bsLink().icon('fa-eraser').class('ajax').href(path('route_async_worker_runner_reset', { 'runnerId': runner.id })).title('Runner-Statistik resetten').attr('data-confirm', 'Wirklich resetten?')) }}
-  {{ macrosBootstrap.btn2(bsLink().icon('fa-window-close').class('ajax').href(path('route_async_worker_runner_kill', { 'runnerId': runner.id })).title('Runner resetten').attr('data-confirm', 'Wirklich resetten?')) }}
+  {{ macrosBootstrap.btn2(bsLink().icon('fa-sync').attr('data-ajax-click', runner.id).href(path(route_async_worker_runner_refresh, { 'runnerId': runner.id })).title('Runner-Ansicht refreshen')) }}
+  {{ macrosBootstrap.btn1(bsLink().icon('fa-power-off').class('ajax').href(path(route_async_worker_runner_shutdown, { 'runnerId': runner.id })).title('Shutdown-Signal an Runner senden')) }}
+  {{ macrosBootstrap.btn2(bsLink().icon('fa-eraser').class('ajax').href(path(route_async_worker_runner_reset, { 'runnerId': runner.id })).title('Runner-Statistik resetten').attr('data-confirm', 'Wirklich resetten?')) }}
+  {{ macrosBootstrap.btn2(bsLink().icon('fa-window-close').class('ajax').href(path(route_async_worker_runner_kill, { 'runnerId': runner.id })).title('Runner resetten').attr('data-confirm', 'Wirklich resetten?')) }}
 </div>
