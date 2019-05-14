@@ -108,7 +108,7 @@ class ListenCommand extends AbstractExecutionCommand {
     $timeStart = time();
 
     $this->messenger->updateRunner($this->getRunner()
-      ->setRunTimeout(new \DateTime('+'.$timeLimit.'sec'))
+      ->setRunTimeout(new \DateTime('+'.round($this->config['runner']['timeout'] * $timeLimit).'sec'))
       // Set the last time this runner checked in, use this to help determine when scripts die.
       ->setRunStarted(new \DateTime('@'.$timeStart))
       ->setRunPid(getmypid())
