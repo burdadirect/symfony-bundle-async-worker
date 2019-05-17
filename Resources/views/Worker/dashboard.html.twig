@@ -1,5 +1,5 @@
 <div class="row">
-  {% for runner in messenger.runners %}
+  {% for runner in asyncWorker.runners %}
     <div class="col-lg-4">
       <h2>Runner <span class="highlight">{{ runner.id }}</span></h2>
       <div data-ajax-target="{{ runner.id }}">
@@ -9,14 +9,14 @@
   {% endfor %}
 </div>
 
-{% set jobsFailed = messenger.jobsFailed %}
+{% set jobsFailed = asyncWorker.jobsFailed %}
 {% if jobsFailed|length > 0 %}
   <hr class="mvl" />
   <h1 style="margin-bottom:0;">Failed - <span class="highlight">#{{ jobsFailed|length }}</span></h1>
   {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: jobsFailed, settings: { 'table': 'table-bordered-colored table-danger', 'empty': 'Keine fehlgeschlagenen Jobs vorhanden!', 'buttons': ['delete', 'force'] } } %}
 {% endif %}
 
-{% set jobsExpired = messenger.jobsExpired %}
+{% set jobsExpired = asyncWorker.jobsExpired %}
 {% if jobsExpired|length > 0 %}
   <hr class="mvl" />
 
@@ -24,7 +24,7 @@
 {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: jobsExpired, settings: { 'table': 'table-bordered-colored table-secondary', 'empty': 'Keine abgelaufenen Jobs vorhanden!', 'buttons': ['delete', 'force'] } } %}
 {% endif %}
 
-{% set jobsParked = messenger.jobsParked %}
+{% set jobsParked = asyncWorker.jobsParked %}
 {% if jobsParked|length > 0 %}
   <hr class="mvl" />
 
@@ -34,23 +34,23 @@
 
 <hr class="mvl" />
 
-{% set jobsRunning = messenger.jobsRunning %}
+{% set jobsRunning = asyncWorker.jobsRunning %}
 <h1 style="margin-bottom:0;">Running - <span class="highlight">#{{ jobsRunning|length }}</span></h1>
 {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: jobsRunning, settings: { 'table': 'table-bordered-colored table-success', 'empty': 'Keine laufenden Jobs vorhanden!', 'buttons': ['delete'] } } %}
 
 <hr class="mvl" />
 
-{% set numJobsQueued = messenger.countJobsQueued %}
+{% set numJobsQueued = asyncWorker.countJobsQueued %}
 <h1 style="margin-bottom:0;">Queued - <span class="highlight">#{{ numJobsQueued }}</span></h1>
 
 {% if numJobsQueued > 0 %}
-  {% for priority in messenger.priorities %}
-    {% set jobCount = messenger.countJobsQueued([priority]) %}
+  {% for priority in asyncWorker.priorities %}
+    {% set jobCount = asyncWorker.countJobsQueued([priority]) %}
     <h2 style="margin-bottom:0;">{{ priority }} - <span class="highlight">#{{ jobCount }}</span></h2>
     {% if jobCount > 0 %}
-      {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: messenger.jobsQueued(priority), settings: { 'position': true, 'headline': 'Allgemein', 'table': 'table-bordered-colored table-warning', 'buttons': ['delete'] } } %}
-      {% for runnerId in messenger.runnerIds %}
-      {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: messenger.jobsQueued(priority, runnerId), settings: {' position': true, 'headline': 'Worker <span class="highlight">' ~ runnerId ~ '</span>', 'table': 'table-bordered-colored table-warning', 'buttons': ['delete'] } } %}
+      {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: asyncWorker.jobsQueued(priority), settings: { 'position': true, 'headline': 'Allgemein', 'table': 'table-bordered-colored table-warning', 'buttons': ['delete'] } } %}
+      {% for runnerId in asyncWorker.runnerIds %}
+      {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: asyncWorker.jobsQueued(priority, runnerId), settings: {' position': true, 'headline': 'Worker <span class="highlight">' ~ runnerId ~ '</span>', 'table': 'table-bordered-colored table-warning', 'buttons': ['delete'] } } %}
       {% endfor %}
     {% else %}
       <p>Keine eingereihten Jobs mit dieser Priorität vorhanden!</p>
@@ -62,14 +62,14 @@
 
 <hr class="mvl" />
 
-{% set jobsDelayed = messenger.jobsDelayed %}
+{% set jobsDelayed = asyncWorker.jobsDelayed %}
 <h1 style="margin-bottom:0;">Delayed - <span class="highlight">#{{ jobsDelayed|length }}</span></h1>
   {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: jobsDelayed, settings: { 'table': 'table-bordered-colored table-info', 'empty': 'Keine verzögerten Jobs vorhanden!', 'buttons': ['delete', 'force'] } } %}
 
 {% if role_all is defined and is_granted(role_all) %}
   <hr class="mvl" />
 
-  {% set jobs = messenger.jobs %}
+  {% set jobs = asyncWorker.jobs %}
   <h1 style="margin-bottom:0;">All - <span class="highlight">#{{ jobs|length }}</span></h1>
   {% include '@HBMAsyncWorker/Worker/partials/job-list.html.twig' with { jobs: jobs, settings: { 'table': 'table-light', 'empty': 'Keine Jobs vorhanden!', 'buttons': ['delete'] } } %}
 {% endif %}
