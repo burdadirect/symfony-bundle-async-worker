@@ -5,7 +5,7 @@ namespace HBM\AsyncWorkerBundle\Services;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Templating\EngineInterface;
+use Twig\Environment;
 
 class Informer {
 
@@ -22,9 +22,9 @@ class Informer {
   private $mailer;
 
   /**
-   * @var EngineInterface
+   * @var Environment
    */
-  private $templating;
+  private $twig;
 
   /**
    * Messenger constructor.
@@ -38,13 +38,13 @@ class Informer {
    *
    * @param array $config
    * @param \Swift_Mailer $mailer
-   * @param EngineInterface $templating
+   * @param Environment $twig
    * @param ConsoleLogger $consoleLogger
    */
-  public function __construct(array $config, \Swift_Mailer $mailer, EngineInterface $templating, ConsoleLogger $consoleLogger) {
+  public function __construct(array $config, \Swift_Mailer $mailer, Environment $twig, ConsoleLogger $consoleLogger) {
     $this->config = $config;
     $this->mailer = $mailer;
-    $this->templating = $templating;
+    $this->twig = $twig;
     $this->consoleLogger = $consoleLogger;
   }
 
@@ -117,8 +117,8 @@ class Informer {
   private function renderTemplateChain(array $templates, array $data, string $default = NULL) : ?string {
     foreach ($templates as $template) {
       try {
-        if ($this->templating->exists($template)) {
-          return $this->templating->render($template, $data);
+        if ($this->twig->getLoader()->exists($template)) {
+          return $this->twig->render($template, $data);
         }
       } catch (\Throwable $e) {
       }
