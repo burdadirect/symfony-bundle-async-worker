@@ -27,14 +27,14 @@
     "php" : ">=7.1",
     "ext-redis": "*",
     "ext-json": "*",
+    "burdanews/symfony-bundle-twig-extensions": "dev-master",
     "psr/log": "^1.0",
     "symfony/config": "^3.4|^4.2",
     "symfony/console": "^3.4|^4.2",
-    "symfony/twig-bundle": "^3.4|^4.2",
     "symfony/dependency-injection": "^3.4|^4.2",
     "symfony/swiftmailer-bundle": "^3.2",
     "long-running/long-running": "^0.3.0",
-    "burdanews/symfony-bundle-twig-extensions": "dev-master"
+    "twig/twig": "^2.11"
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",

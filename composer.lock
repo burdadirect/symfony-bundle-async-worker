@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a1e09ed8e4896127a02a5888352fb215",
+    "content-hash": "72474ea8d6355c8e2c3d2236a3e65357",
     "packages": [
         {
             "name": "burdanews/symfony-bundle-twig-extensions",
