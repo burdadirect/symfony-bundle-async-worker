@@ -570,7 +570,7 @@ class Messenger {
    */
   public function getExpiredJobs($remove = TRUE) : array {
     /** @var Redis $redis */
-    $redis = $this->redis->multi();
+    $redis = $this->redis->multi(Redis::MULTI);
 
     $ts = time();
     $redis->zRangeByScore(self::SET_JOBS_EXPIRING, 0, $ts);
@@ -614,7 +614,7 @@ class Messenger {
    */
   public function getDueJobs($remove = TRUE) : array {
     /** @var Redis $redis */
-    $redis = $this->redis->multi();
+    $redis = $this->redis->multi(Redis::MULTI);
 
     $ts = time();
     $redis->zRangeByScore(self::SET_JOBS_DELAYED, 0, $ts);
