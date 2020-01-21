@@ -24,7 +24,7 @@
     }
   ],
   "require": {
-    "php" : ">=7.1",
+    "php" : ">=7.3",
     "ext-redis": "*",
     "ext-json": "*",
     "burdanews/symfony-bundle-twig-extensions": "dev-master",

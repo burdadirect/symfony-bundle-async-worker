@@ -2,10 +2,14 @@
 
 namespace HBM\AsyncWorkerBundle\Services;
 
+use DateTime;
+use Exception;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\Interfaces\Job;
 use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
 use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;
+use InvalidArgumentException;
+use Redis;
 
 class Messenger {
 
@@ -34,7 +38,7 @@ class Messenger {
   private $config;
 
   /**
-   * @var \Redis
+   * @var Redis
    */
   private $redis;
 
@@ -42,17 +46,17 @@ class Messenger {
    * Messenger constructor.
    *
    * @param array $config
-   * @param \Redis $redis
+   * @param Redis $redis
    * @param ConsoleLogger|NULL $consoleLogger
    */
-  public function __construct(array $config, \Redis $redis, ConsoleLogger $consoleLogger = NULL) {
+  public function __construct(array $config, Redis $redis, ConsoleLogger $consoleLogger = NULL) {
     $this->config = $config;
     $this->redis = $redis;
     $this->consoleLogger = $consoleLogger;
 
     try {
-      $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-    } catch (\Exception $re) {
+      $this->redis->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
+    } catch (Exception $re) {
       $this->outputAndOrLog('Redis is not available.', 'critical');
     }
   }
@@ -64,10 +68,8 @@ class Messenger {
    */
   public function isAvailable() : bool {
     try {
-      if ($this->redis && ($this->redis->ping() === '+PONG')) {
-        return TRUE;
-      }
-    } catch (\Exception $re) {
+      return $this->redis && $this->redis->ping();
+    } catch (Exception $re) {
       $this->outputAndOrLog('Redis is not available.', 'critical');
     }
 
@@ -100,7 +102,7 @@ class Messenger {
         // Index 1 of the array holds the job.
         $jobId = $entry[1] ?? NULL;
       }
-    } catch (\Exception $re) {
+    } catch (Exception $re) {
     }
 
     return $jobId;
@@ -112,15 +114,15 @@ class Messenger {
    * @param AbstractJob $job
    */
   public function dispatchJob(AbstractJob $job) : void {
-    if (!\in_array($job->getPriority(), $this->getPriorities(), TRUE)) {
+    if (!in_array($job->getPriority(), $this->getPriorities(), TRUE)) {
       $this->outputAndOrLog('Try to dispatch job with an invalid/missing priority.', 'warning');
-      throw new \InvalidArgumentException('Priority is invalid. Use one of the following: '.json_encode($this->getPriorities()));
+      throw new InvalidArgumentException('Priority is invalid. Use one of the following: '.json_encode($this->getPriorities()));
     }
 
     $this->redis->hSet(self::HASH_JOBS, $job->getId(), $job);
 
     if ($job->getExpires()) {
-      $this->redis->zAdd(self::SET_JOBS_EXPIRING, $job->getExpires()->getTimestamp(), $job->getId());
+      $this->redis->zAdd(self::SET_JOBS_EXPIRING, [], $job->getExpires()->getTimestamp(), $job->getId());
     }
 
     if ($job->getState() === Job::STATE_PARKED) {
@@ -156,7 +158,7 @@ class Messenger {
    */
   protected function delayJob(AbstractJob $job, int $score) : bool {
     if ($this->redis->zCount(self::SET_JOBS_DELAYED, $score, $score) === 0) {
-      return (bool) $this->redis->zAdd(self::SET_JOBS_DELAYED, $score, $job->getId());
+      return (bool) $this->redis->zAdd(self::SET_JOBS_DELAYED, [], $score, $job->getId());
     }
 
     return $this->delayJob($job, $score + 1);
@@ -265,7 +267,7 @@ class Messenger {
       $this->enqueueJob($dueJob);
     }
 
-    return \count($dueJobs);
+    return count($dueJobs);
   }
 
   /**
@@ -280,7 +282,7 @@ class Messenger {
       $this->markJobAsExpired($expiredJob);
     }
 
-    return \count($expiredJobs);
+    return count($expiredJobs);
   }
 
   /****************************************************************************/
@@ -535,13 +537,13 @@ class Messenger {
   public function countJobsQueued($priorities = NULL, $runnerIds = NULL) : int {
     if ($priorities === NULL) {
       $priorities = $this->getPriorities();
-    } elseif (!\is_array($priorities)) {
+    } elseif (!is_array($priorities)) {
       $priorities = [$priorities];
     }
 
     if ($runnerIds === NULL) {
       $runnerIds = $this->getRunnerIds();
-    } elseif (!\is_array($runnerIds)) {
+    } elseif (!is_array($runnerIds)) {
       $runnerIds = [$runnerIds];
     }
 
@@ -567,7 +569,7 @@ class Messenger {
    * @return array|AbstractJob[]
    */
   public function getExpiredJobs($remove = TRUE) : array {
-    /** @var \Redis $redis */
+    /** @var Redis $redis */
     $redis = $this->redis->multi();
 
     $ts = time();
@@ -611,7 +613,7 @@ class Messenger {
    * @return array|AbstractJob[]
    */
   public function getDueJobs($remove = TRUE) : array {
-    /** @var \Redis $redis */
+    /** @var Redis $redis */
     $redis = $this->redis->multi();
 
     $ts = time();
@@ -651,10 +653,10 @@ class Messenger {
    * @param AbstractJob $job
    * @param string $runnerId
    *
-   * @throws \Exception
+   * @throws Exception
    */
   public function markJobAsRunning(AbstractJob $job, string $runnerId) : void {
-    $job->setStarted(new \DateTime('now'));
+    $job->setStarted(new DateTime('now'));
     $job->setState(Job::STATE_RUNNING);
     if ($runnerId) {
       $job->setRunnerExecuting($runnerId);
@@ -718,9 +720,9 @@ class Messenger {
     $this->redis->hDel(self::HASH_RUNNER, $runnerId);
 
     // Check runner ID.
-    if (!\in_array($runnerId, $this->getRunnerIds(), TRUE)) {
+    if (!in_array($runnerId, $this->getRunnerIds(), TRUE)) {
       $this->outputAndOrLog('Try to load runner with an invalid id.', 'warning');
-      throw new \InvalidArgumentException('Runner ID is invalid. Use one of the following: '.json_encode($this->getRunnerIds()));
+      throw new InvalidArgumentException('Runner ID is invalid. Use one of the following: '.json_encode($this->getRunnerIds()));
     }
 
     return new Runner($runnerId);
