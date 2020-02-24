@@ -1,4 +1,4 @@
-{% import '@HBMTwigExtensions/macrosBootstrap.html.twig' as macrosBootstrap %}
+{% import '@HBMTwigBootstrap/macrosBootstrap.html.twig' as macrosBootstrap %}
 
 <div class="btn-group btn-group-sm" role="group" aria-label="Aktionen">
   {{ macrosBootstrap.btn2(bsLink().icon('fa-sync').attr('data-ajax-click', runner.id).href(path(route_async_worker_runner_refresh, { 'runnerId': runner.id })).title('Runner-Ansicht refreshen')) }}
