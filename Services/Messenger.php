@@ -80,7 +80,7 @@ class Messenger {
    * Purges all entries from all lists.
    */
   public function purge() : void {
-    $this->redis->flushAll();
+    $this->redis->flushDB();
   }
 
   /**
