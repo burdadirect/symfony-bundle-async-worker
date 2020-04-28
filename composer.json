@@ -9,7 +9,7 @@
   "type": "symfony-bundle",
   "autoload": {
     "psr-4": {
-      "HBM\\AsyncWorkerBundle": ""
+      "HBM\\AsyncWorkerBundle": "HBM/AsyncWorkerBundle"
     }
   },
   "autoload-dev": {
@@ -40,6 +40,5 @@
     "roave/security-advisories": "dev-master",
     "phpunit/phpunit" : "^7.0|^8.0",
     "symfony/phpunit-bridge": "^3.4|^4.4"
-  },
-  "target-dir": "HBM/AsyncWorkerBundle"
+  }
 }
