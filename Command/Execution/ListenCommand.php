@@ -3,9 +3,9 @@
 namespace HBM\AsyncWorkerBundle\Command\Execution;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
-use HBM\AsyncWorkerBundle\Services\Informer;
-use HBM\AsyncWorkerBundle\Services\Messenger;
-use HBM\AsyncWorkerBundle\Services\ConsoleLogger;
+use HBM\AsyncWorkerBundle\Service\Informer;
+use HBM\AsyncWorkerBundle\Service\Messenger;
+use HBM\AsyncWorkerBundle\Service\ConsoleLogger;
 use LongRunning\Core\Cleaner;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;

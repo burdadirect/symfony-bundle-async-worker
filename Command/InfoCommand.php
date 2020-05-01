@@ -2,7 +2,7 @@
 
 namespace HBM\AsyncWorkerBundle\Command;
 
-use HBM\AsyncWorkerBundle\Services\Messenger;
+use HBM\AsyncWorkerBundle\Service\Messenger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;

@@ -1,6 +1,6 @@
 <?php
 
-namespace HBM\AsyncWorkerBundle\Services;
+namespace HBM\AsyncWorkerBundle\Service;
 
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;

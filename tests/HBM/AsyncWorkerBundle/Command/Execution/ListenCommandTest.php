@@ -4,7 +4,7 @@ namespace Tests\HBM\AsyncWorkerBundle\Command\Execution;
 
 use HBM\AsyncWorkerBundle\Command\Execution\ListenCommand;
 use HBM\AsyncWorkerBundle\Command\ShutdownCommand;
-use HBM\AsyncWorkerBundle\Services\Informer;
+use HBM\AsyncWorkerBundle\Service\Informer;
 use LongRunning\Core\Cleaner;
 use Tests\HBM\AsyncWorkerBundle\Command\AbstractCommandTestCase;
 

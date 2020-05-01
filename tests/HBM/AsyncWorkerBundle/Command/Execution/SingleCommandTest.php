@@ -5,7 +5,7 @@ namespace Tests\HBM\AsyncWorkerBundle\Command\Execution;
 use HBM\AsyncWorkerBundle\AsyncWorker\Job\AbstractJob;
 use HBM\AsyncWorkerBundle\AsyncWorker\Runner\Runner;
 use HBM\AsyncWorkerBundle\Command\Execution\SingleCommand;
-use HBM\AsyncWorkerBundle\Services\Informer;
+use HBM\AsyncWorkerBundle\Service\Informer;
 use Tests\HBM\AsyncWorkerBundle\Command\AbstractCommandTestCase;
 
 class SingleCommandTest extends AbstractCommandTestCase {

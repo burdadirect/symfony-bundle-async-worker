@@ -2,7 +2,7 @@
 
 namespace HBM\AsyncWorkerBundle\Traits;
 
-use HBM\AsyncWorkerBundle\Services\ConsoleLogger;
+use HBM\AsyncWorkerBundle\Service\ConsoleLogger;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

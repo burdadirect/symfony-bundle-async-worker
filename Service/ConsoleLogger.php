@@ -1,6 +1,6 @@
 <?php
 
-namespace HBM\AsyncWorkerBundle\Services;
+namespace HBM\AsyncWorkerBundle\Service;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;

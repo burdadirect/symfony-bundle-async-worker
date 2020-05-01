@@ -2,8 +2,8 @@
 
 namespace HBM\AsyncWorkerBundle\Command;
 
-use HBM\AsyncWorkerBundle\Services\Messenger;
-use HBM\AsyncWorkerBundle\Services\ConsoleLogger;
+use HBM\AsyncWorkerBundle\Service\Messenger;
+use HBM\AsyncWorkerBundle\Service\ConsoleLogger;
 use HBM\AsyncWorkerBundle\Traits\ConsoleLoggerTrait;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\OutputInterface;
