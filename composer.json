@@ -33,7 +33,7 @@
     "symfony/console": "^3.4|^4.4",
     "symfony/dependency-injection": "^3.4|^4.4",
     "symfony/swiftmailer-bundle": "^3.2",
-    "long-running/long-running": "^0.4",
+    "long-running/long-running": "^0.5",
     "twig/twig": "^2.11|^3.0"
   },
   "require-dev": {
