@@ -27,7 +27,7 @@
     "php" : ">=7.3",
     "ext-redis": "*",
     "ext-json": "*",
-    "burdadirect/symfony-bundle-twig-extensions": "dev-master",
+    "burdadirect/symfony-bundle-twig-extensions": "^1.0|dev-master",
     "psr/log": "^1.0",
     "symfony/config": "^4.4|^5.2",
     "symfony/console": "^4.4|^5.2",
